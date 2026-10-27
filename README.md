@@ -67,8 +67,13 @@
 
 ## 🚀 Quickstart & Installation
 
-### Voraussetzungen
-* **Python 3.10+** (Windows, macOS oder Linux)
+### Option A: 1-Klick Windows Portable Download (ohne Python-Installation!)
+Lade dir einfach das fertige Paket **`OpenStitch-Studio-v0.1.0-Windows-x64.zip`** von den **[GitHub Releases (v0.1.0)](https://github.com/lb2002/openstitch/releases/tag/v0.1.0)** herunter, entpacke es und starte **`OpenStitch-Studio.exe`** per Doppelklick!
+
+---
+
+### Option B: Aus dem Quellcode starten (Windows, macOS & Linux)
+* Voraussetzung: **Python 3.10+**
 
 ### 1. Repository klonen & starten
 
