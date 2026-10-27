@@ -42,7 +42,7 @@ from ..core.design import HOOPS, Design, EmbObject, FillObject, Hoop, RunObject,
 from ..core.machines import MACHINE_PROFILES, MachineProfile
 from ..core.stitchplan import Thread
 from ..engine.pro_tools import create_applique_objects, import_svg, run_quality_doctor
-from ..io.formats import FORMAT_NAMES, READ_EXT, WRITE_EXT, export_plan, import_file
+from ..io.formats import FORMAT_NAMES, READ_EXT, WRITE_EXT, export_plan, import_file, verify_exported_file
 from ..io.project import export_worksheet_pdf, load_project, save_project
 from ..render import render_image
 from ..text import TextObject
@@ -308,7 +308,9 @@ class MainWindow(QMainWindow):
         self._build_bottom_bar()
 
         self.canvas.selection_changed.connect(self._on_canvas_selection)
+        self.canvas.about_to_modify.connect(self._snapshot)
         self.canvas.design_modified.connect(self._on_design_modified)
+        self.canvas.tool_changed.connect(self._set_tool)
         self.canvas.cursor_moved.connect(self._on_cursor_moved)
 
         if not defer_starter:
@@ -883,6 +885,7 @@ class MainWindow(QMainWindow):
         self.canvas.design.settings.needles = mp.needles
         self.canvas.design.settings.machine_spm = mp.default_spm
         self.canvas.design.settings.max_stitch = mp.max_stitch_mm
+        self.canvas.design.settings.machine_name = mp.name
         self._refresh_needle_list()
         self._refresh_stats()
 
@@ -1128,7 +1131,21 @@ class MainWindow(QMainWindow):
             return
         try:
             export_plan(self.canvas.plan, path)
-            QMessageBox.information(self, "Export erfolgreich", f"Stickdatei wurde gespeichert:\n{path}")
+            ext = os.path.splitext(path)[1].lower().lstrip(".")
+            if ext in ("exp", "dst", "pes", "jef", "vp3", "xxx", "u01", "pec", "tbf"):
+                rep = verify_exported_file(path, self.canvas.plan)
+                QMessageBox.information(
+                    self,
+                    "Export & Binär-Verifikation erfolgreich",
+                    f"✅ Stickdatei gespeichert und im Simulator verifiziert:\n{path}\n\n"
+                    f"• Dateigrösse: {rep['bytes']:,} Bytes\n"
+                    f"• Verifizierte Nähstiche: {rep['stitches']:,}\n"
+                    f"• Abmessung: {rep['width_mm']:.1f} × {rep['height_mm']:.1f} mm\n"
+                    f"• Max. Schrittweite: {rep['max_step_mm']:.1f} mm\n"
+                    f"• Farbwechsel: {rep['color_changes']}   ·   Sprünge: {rep['jumps']}".replace(",", "'"),
+                )
+            else:
+                QMessageBox.information(self, "Export erfolgreich", f"Datei wurde gespeichert:\n{path}")
         except Exception as exc:
             QMessageBox.critical(self, "Export-Fehler", str(exc))
 

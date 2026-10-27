@@ -18,8 +18,14 @@ def save_project(design: Design, path: str) -> None:
         "app": APP_NAME,
         "version": __version__,
         "name": design.name,
-        "hoop": {"name": design.hoop.name, "width": design.hoop.width,
-                 "height": design.hoop.height, "round": design.hoop.round},
+        "hoop": {
+            "name": design.hoop.name,
+            "width": design.hoop.width,
+            "height": design.hoop.height,
+            "round": design.hoop.round,
+            "mode": design.hoop.mode,
+            "margin_mm": design.hoop.margin_mm,
+        },
         "settings": design.settings.__dict__,
         "objects": [o.to_dict() for o in design.objects],
     }
@@ -31,14 +37,23 @@ def load_project(path: str) -> Design:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     h = data.get("hoop", {})
-    hoop = Hoop(h.get("name", "Rahmen"), h.get("width", 180), h.get("height", 180), h.get("round", True))
+    hoop = Hoop(
+        h.get("name", "Rahmen"),
+        h.get("width", 150),
+        h.get("height", 150),
+        h.get("round", True),
+        h.get("mode", "medium"),
+        h.get("margin_mm", 4.5),
+    )
     st = Settings(**{k: v for k, v in data.get("settings", {}).items() if k in Settings.__annotations__})
     objs = [object_from_dict(od) for od in data.get("objects", [])]
     return Design(objects=objs, hoop=hoop, settings=st, name=data.get("name", "Projekt"))
 
 
-def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str) -> None:
-    """Erzeugt ein druckfertiges Produktionsblatt (PDF) für die Melco EMT10/4."""
+def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str, machine_name: str | None = None) -> None:
+    """Erzeugt ein druckfertiges Produktionsblatt (PDF) für alle Stickmaschinen."""
+    mach_str = machine_name or getattr(design.settings, "machine_name", "Universal Standard (15 Nadeln)")
+    max_nd = max(1, getattr(design.settings, "needles", 15))
     pdf = QPdfWriter(path)
     pdf.setPageSize(QPageSize(QPageSize.A4))
     pdf.setResolution(300)
@@ -49,11 +64,11 @@ def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str) -> None:
     # Titelzeile
     p.setPen(QColor(25, 28, 34))
     p.setFont(QFont("Segoe UI", 16, QFont.Bold))
-    p.drawText(m, m + 60, f"{design.name}  —  Produktionsblatt (Melco EMT10/4)")
+    p.drawText(m, m + 60, f"{design.name}  —  Produktions- & Einrichteblatt")
     p.setFont(QFont("Segoe UI", 9))
     p.setPen(QColor(100, 105, 115))
     now_str = _dt.datetime.now().strftime("%d.%m.%Y %H:%M")
-    p.drawText(m, m + 115, f"Erstellt mit OpenStitch {__version__} am {now_str}")
+    p.drawText(m, m + 115, f"Erstellt mit {APP_NAME} Studio {__version__} am {now_str}")
 
     # Kennzahlen-Box
     x0, y0, x1, y1 = plan.bounds()
@@ -69,10 +84,10 @@ def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str) -> None:
         ("Grösse (B × H)", f"{bw:.1f} × {bh:.1f} mm"),
         ("Farbwechsel / Blöcke", f"{plan.color_changes} ({len(plan.blocks)} Blöcke)"),
         ("Fadenschnitte (Trims)", f"{plan.trim_count}"),
-        ("Rahmen", f"{design.hoop.name} ({design.hoop.width:.0f}×{design.hoop.height:.0f} mm)"),
-        ("Laufzeit (ca. 800 SPM)", f"{plan.estimated_minutes(design.settings.machine_spm):.1f} Min."),
+        ("Stickrahmen", f"{design.hoop.name} ({design.hoop.width:.0f}×{design.hoop.height:.0f} mm)"),
+        (f"Laufzeit (ca. {design.settings.machine_spm} SPM)", f"{plan.estimated_minutes(design.settings.machine_spm):.1f} Min."),
         ("Oberfadenbedarf", f"{plan.thread_length_m():.1f} m"),
-        ("Maschine", "Melco EMT10/4 (10 Nadeln, EXP)"),
+        ("Maschinenprofil", mach_str[:28]),
     ]
     col_w = (W - 2 * m - 60) // 4
     for idx, (k, v) in enumerate(stats):
@@ -103,13 +118,13 @@ def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str) -> None:
     tw = W - m - tx
     p.setFont(QFont("Segoe UI", 11, QFont.Bold))
     p.setPen(QColor(25, 28, 34))
-    p.drawText(tx, prev_y + 40, "Farbfolge & Nadelzuordnung (EMT10/4)")
+    p.drawText(tx, prev_y + 40, f"Farbfolge & Nadelzuordnung ({max_nd} Nadeln)")
 
-    # eindeutige Farben → Nadeln 1..10
+    # eindeutige Farben → Nadeln 1..max_nd
     needle_map: dict[str, int] = {}
     for b in plan.blocks:
         if b.thread.hex not in needle_map:
-            needle_map[b.thread.hex] = (len(needle_map) % 10) + 1
+            needle_map[b.thread.hex] = (len(needle_map) % max_nd) + 1
 
     ry = prev_y + 80
     row_h = 72

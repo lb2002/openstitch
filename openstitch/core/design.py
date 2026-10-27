@@ -353,9 +353,10 @@ class Settings:
     min_trim: float = 1.6       # Verbindungen länger als das → Trim
     tie_in: bool = True
     tie_off: bool = True
-    max_stitch: float = 12.1    # mm (EXP-Grenze 12.7 mm)
-    machine_spm: int = 800
-    needles: int = 10           # Melco EMT10/4: 10 Nadeln
+    max_stitch: float = 12.1    # mm (Maschinengrenze)
+    machine_spm: int = 850
+    needles: int = 15           # Universal Standard: 15 Nadeln
+    machine_name: str = "Universal Standard (DST / PES / EXP · 15 Nadeln)"
 
 
 @dataclass

@@ -29,6 +29,8 @@ from ..render import draw_plan
 class StitchCanvas(QWidget):
     selection_changed = Signal(object)       # EmbObject | None
     design_modified = Signal(str)            # Beschreibung für Undo
+    about_to_modify = Signal(str)            # Snapshot vor interaktiver Änderung
+    tool_changed = Signal(str)               # Synchronisiert Toolbar-Buttons
     cursor_moved = Signal(float, float)      # x_mm, y_mm
 
     def __init__(self, parent=None):
@@ -367,12 +369,14 @@ class StitchCanvas(QWidget):
                     ax = cx + math.cos(ang_rad) * arm
                     ay = cy + math.sin(ang_rad) * arm
                     if math.hypot(mm[0] - ax, mm[1] - ay) <= 9.0 / self.px_per_mm:
+                        self.about_to_modify.emit("Stichwinkel drehen")
                         self._dragging_angle = True
                         return
                 # 2. Prüfen ob ein Konturknoten getroffen wurde
                 nodes = self._get_editable_nodes(self.selected)
                 for idx, (nx, ny) in enumerate(nodes):
                     if math.hypot(mm[0] - nx, mm[1] - ny) <= 8.0 / self.px_per_mm:
+                        self.about_to_modify.emit("Knoten verschieben")
                         self._dragging_node_idx = idx
                         return
 
@@ -386,6 +390,7 @@ class StitchCanvas(QWidget):
                 if b != (0, 0, 0, 0):
                     hx, hy = b[2] + 1.0, b[3] + 1.0
                     if math.hypot(mm[0] - hx, mm[1] - hy) <= 8.0 / self.px_per_mm:
+                        self.about_to_modify.emit("Objekt skalieren")
                         self._dragging_obj = True
                         self._drag_mode = "scale"
                         self._drag_start_mm = mm
@@ -410,6 +415,7 @@ class StitchCanvas(QWidget):
                 self._drag_start_mm = mm
                 self._orig_transform = hit.transform
                 self._orig_bounds = hit.bounds()
+                self._move_snapshot_taken = False
             self.update()
 
     def mouseDoubleClickEvent(self, event):
@@ -441,6 +447,9 @@ class StitchCanvas(QWidget):
             dx = mm[0] - self._drag_start_mm[0]
             dy = mm[1] - self._drag_start_mm[1]
             if self._drag_mode == "move":
+                if not getattr(self, "_move_snapshot_taken", False) and math.hypot(dx, dy) > 0.2:
+                    self._move_snapshot_taken = True
+                    self.about_to_modify.emit("Objekt verschieben")
                 self.selected.transform = compose((1, 0, 0, 1, dx, dy), self._orig_transform)
             elif self._drag_mode == "scale":
                 b = self._orig_bounds
@@ -524,22 +533,38 @@ class StitchCanvas(QWidget):
         elif event.key() == Qt.Key_Escape and self._draw_pts:
             self._draw_pts.clear()
             self.tool = "select"
+            self.tool_changed.emit("select")
             self.update()
         elif event.key() in (Qt.Key_Delete, Qt.Key_Backspace) and self.selected is not None:
             if self.selected in self.design.objects:
+                self.about_to_modify.emit("Objekt löschen")
                 self.design.objects.remove(self.selected)
                 self.selected = None
                 self.selection_changed.emit(None)
                 self.design_modified.emit("Objekt löschen")
+        elif not self._draw_pts and event.modifiers() == Qt.NoModifier:
+            key_tool = {
+                Qt.Key_V: "select",
+                Qt.Key_N: "edit_nodes",
+                Qt.Key_F: "draw_fill",
+                Qt.Key_S: "draw_satin",
+                Qt.Key_R: "draw_run",
+            }.get(event.key())
+            if key_tool:
+                self.tool = key_tool
+                self.tool_changed.emit(key_tool)
+                self.update()
 
     def _finish_drawing(self):
         pts = list(self._draw_pts)
         self._draw_pts.clear()
         t = self.tool
         self.tool = "select"
+        self.tool_changed.emit("select")
         if t == "draw_fill" and len(pts) >= 3:
             poly = Polygon(pts).buffer(0)
             if not poly.is_empty and poly.area >= 1.0:
+                self.about_to_modify.emit("Fläche zeichnen")
                 obj = FillObject(self.active_thread, name="Freihand-Fläche", geom=poly)
                 self.design.objects.append(obj)
                 self.selected = obj
@@ -548,6 +573,7 @@ class StitchCanvas(QWidget):
         elif t == "draw_satin" and len(pts) >= 2:
             line = LineString(pts)
             if line.length >= 1.0:
+                self.about_to_modify.emit("Satin zeichnen")
                 obj = SatinObject(self.active_thread, name="Freihand-Satin", geom=line.buffer(1.6, cap_style=2))
                 self.design.objects.append(obj)
                 self.selected = obj
@@ -556,6 +582,7 @@ class StitchCanvas(QWidget):
         elif t == "draw_run" and len(pts) >= 2:
             line = LineString(pts)
             if line.length >= 1.0:
+                self.about_to_modify.emit("Steppstich zeichnen")
                 obj = RunObject(self.active_thread, name="Steppstich-Pfad", geom=line, repeats=1)
                 self.design.objects.append(obj)
                 self.selected = obj

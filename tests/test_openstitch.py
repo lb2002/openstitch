@@ -17,7 +17,7 @@ from openstitch.core.design import Design, FillObject, RunObject, SatinObject
 from openstitch.core.stitchplan import Thread
 from openstitch.io.exp import exp_bytes
 from openstitch.io.fat12 import IMAGE_SIZE, Fat12Image
-from openstitch.io.formats import export_plan, import_file
+from openstitch.io.formats import export_plan, import_file, verify_exported_file
 from openstitch.io.project import export_worksheet_pdf, load_project, save_project
 from openstitch.text import TextObject
 from openstitch.ui.main_window import MainWindow
@@ -96,3 +96,63 @@ def test_auto_digitizer_and_gui():
     ps_design = generate_photostitch(rgba, PhotoStitchParams(width_mm=60, mode="mono"))
     assert ps_design.build_plan().stitch_count > 100
     win.close()
+
+
+def test_all_machine_formats_binary_verification(tmp_path):
+    """Exportiert ein komplexes Design in alle wichtigen Binärformate und verifiziert sie unabhängig."""
+    win = MainWindow(show_tour_on_init=False)
+    plan = win.canvas.plan
+    assert plan.stitch_count > 4000
+
+    for ext in ("exp", "dst", "pes", "jef", "vp3", "xxx", "u01"):
+        out_path = str(tmp_path / f"OpenStitch_Logo.{ext}")
+        export_plan(plan, out_path)
+        rep = verify_exported_file(out_path, plan)
+        assert rep["stitches"] >= int(plan.stitch_count * 0.90)
+        assert rep["bytes"] > 1000
+        # Auch den vollständigen Re-Import in ein editierbares OpenStitch-Design prüfen:
+        reimp = import_file(out_path)
+        assert len(reimp.objects) >= 1
+        assert reimp.build_plan().stitch_count >= int(plan.stitch_count * 0.85)
+    win.close()
+
+
+def test_interactive_gui_usage_and_undo_redo():
+    """Simuliert echte Maus- und Tastaturbedienung auf der Leinwand inkl. Undo/Redo-Konsistenz."""
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtGui import QKeyEvent, QMouseEvent
+
+    win = MainWindow(show_tour_on_init=False)
+    canvas = win.canvas
+    initial_count = len(canvas.design.objects)
+
+    # 1. Tastenkürzel 'F' auf der Leinwand drücken → Werkzeug wechselt synchron zu Tatami-Fläche
+    ev_f = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_F, Qt.NoModifier, "f")
+    canvas.keyPressEvent(ev_f)
+    assert canvas.tool == "draw_fill"
+    assert win.act_tool_fill.isChecked() is True
+
+    # 2. Ein Dreieck auf der Leinwand zeichnen und mit Enter abschließen
+    canvas._draw_pts = [(-15.0, -15.0), (15.0, -15.0), (0.0, 15.0)]
+    ev_enter = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Return, Qt.NoModifier, "\r")
+    canvas.keyPressEvent(ev_enter)
+    assert len(canvas.design.objects) == initial_count + 1
+    assert canvas.tool == "select"
+    assert win.act_tool_select.isChecked() is True
+
+    # 3. Undo (Strg+Z) muss das gezeichnete Dreieck wieder entfernen!
+    win.action_undo()
+    assert len(canvas.design.objects) == initial_count
+
+    # 4. Redo (Strg+Y) stellt es wieder her
+    win.action_redo()
+    assert len(canvas.design.objects) == initial_count + 1
+
+    # 5. Entf-Taste auf der Leinwand löscht das ausgewählte Objekt (mit Undo-Snapshot)
+    ev_del = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Delete, Qt.NoModifier, "")
+    canvas.keyPressEvent(ev_del)
+    assert len(canvas.design.objects) == initial_count
+    win.action_undo()
+    assert len(canvas.design.objects) == initial_count + 1
+    win.close()
+

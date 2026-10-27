@@ -12,6 +12,16 @@
 > 💬 **Feedback & Mitarbeit erwünscht!**  
 > Dieses Projekt lebt von echtem Praxis-Feedback an verschiedensten Stickmaschinen und von Community-Beiträgen. Wenn du Ideen, Wünsche oder Bugs findest oder selbst mitentwickeln möchtest: Erstelle gerne ein [Issue](https://github.com/lb2002/openstitch/issues) oder einen [Pull Request](./CONTRIBUTING.md)!
 
+![OpenStitch Studio — Dark Studio Interface](./assets/screenshot_studio.png)
+
+<details>
+<summary><b>🔍 Vorschau: Interaktiver In-App Studio-Rundgang (Spotlight & Coach-Marks)</b></summary>
+<br>
+
+![OpenStitch Studio — Interactive Onboarding Tour](./assets/screenshot_tour.png)
+
+</details>
+
 ---
 
 ## ✨ Highlights & Features
