@@ -11,7 +11,7 @@ from shapely import affinity, wkt
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
 
-from ..engine.fill import fill_runs
+from ..engine.fill import fill_runs, join_covered_runs
 from ..engine.geom import Pt, clean, dist, lines_of, main_axis_angle, polygons_of, directional_grow
 from ..engine.running import bean_stitch, running_stitch, tie_stitches
 from ..engine.satin import satin_runs
@@ -168,7 +168,13 @@ class FillObject(EmbObject):
         # Rahmen-abhängiger Zuschlag auf die Zugkompensation ("Trampolin-Effekt" in grossen Rahmen / Kappen)
         hoop_pc_boost = getattr(self, "_hoop_pc_boost", 1.0)
         top_geom = directional_grow(g, self.pull_comp * hoop_pc_boost, ang)
-        out.extend(fill_runs(top_geom, ang, self.spacing, self.stitch_len, self.pattern, start=cur))
+        top = fill_runs(top_geom, ang, self.spacing, self.stitch_len, self.pattern, start=cur)
+        # Unterlage und Weg zum Deckstich-Einstieg liegen unter dem Deckstich → verbinden statt trimmen
+        under = [r for r in out if len(r) >= 2]
+        if under and top:
+            out = join_covered_runs(under + top[:1], g) + top[1:]
+        else:
+            out = under + top
         return [r for r in out if len(r) >= 2]
 
 
@@ -204,8 +210,13 @@ class SatinObject(EmbObject):
         if not self.puff_3d and res.leftover is not None and not res.leftover.is_empty:
             ang = main_axis_angle(res.leftover) + 90
             out.extend(fill_runs(res.leftover.buffer(0.15), ang, 0.42, 3.0, "standard", start=start))
+        n_left = len(out)
         out.extend(res.runs)
-        return [r for r in out if len(r) >= 2]
+        out = [r for r in out if len(r) >= 2]
+        if n_left and len(out) > n_left:
+            # Wege zwischen Füll-Resten (z. B. Säulen-Enden) und Satinstart werden vom Satin verdeckt
+            out = join_covered_runs(out[:n_left + 1], g) + out[n_left + 1:]
+        return out
 
 
 @dataclass

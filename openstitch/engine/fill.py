@@ -211,6 +211,34 @@ def _travel(poly: Polygon, prepared, rings, a: Pt, b: Pt, stitch_len: float) -> 
     return resample_path(path, stitch_len)[1:]
 
 
+def join_covered_runs(runs: list[list[Pt]], geom, stitch_len: float = 2.5) -> list[list[Pt]]:
+    """Verbindet aufeinanderfolgende Läufe mit Laufstichen innerhalb von `geom` statt Trim + Sprung.
+
+    Nur für Läufe, die anschliessend noch überstickt werden (Unterlage → Deckstich,
+    Satin-Endkappen → Satinsäule): die Wege liegen dann verdeckt unter dem Deckstich."""
+    if len(runs) < 2 or geom is None or geom.is_empty:
+        return runs
+    area = geom.buffer(0.05)
+    prepared = prep(area)
+    rings = []
+    for p in polygons_of(geom.buffer(-0.3)) or polygons_of(geom):
+        rings.append(p.exterior)
+        rings.extend(p.interiors)
+    out = [list(runs[0])]
+    for r in runs[1:]:
+        a, b = out[-1][-1], r[0]
+        if dist(a, b) < 1e-6 or prepared.contains(LineString([a, b])):
+            tr = subdivide(a, b, stitch_len)
+        else:
+            tr = _travel(area, prepared, rings, a, b, stitch_len)
+        if tr is None:
+            out.append(list(r))
+        else:
+            out[-1].extend(tr)
+            out[-1].extend(r[1:])
+    return out
+
+
 def fill_runs(geom, angle: float = 45.0, spacing: float = 0.4, stitch_len: float = 3.5,
               pattern: str = "standard", start: Pt | None = None,
               min_len: float = 0.6) -> list[list[Pt]]:

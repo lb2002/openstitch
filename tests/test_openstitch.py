@@ -259,3 +259,15 @@ def test_fit_to_hoop_keeps_text_scale():
     w_after = obj.bounds()[2] - obj.bounds()[0]
     assert abs(w_after - w_before * s) < 0.05 * w_after
     win.close()
+
+
+def test_single_objects_need_no_internal_trims():
+    """Unterlage → Deckstich und Satin-Endkappen → Säule laufen verdeckt, ohne Trim."""
+    t = Thread((200, 30, 30), "Rot")
+    for obj in (FillObject(t, geom=Point(0, 0).buffer(30), angle=30),
+                SatinObject(t, geom=LineString([(-30, 0), (30, 0)]).buffer(2.5))):
+        d = Design()
+        d.objects.append(obj)
+        plan = d.build_plan()
+        assert plan.trim_count == 1  # nur der Schlussschnitt
+        assert _max_stitch_len(plan) <= d.settings.max_stitch + 1e-6
