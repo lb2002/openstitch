@@ -505,6 +505,12 @@ class MelcoDiskDialog(QDialog):
     def _add_current_to_img(self):
         try:
             name, data = self._current_exp_bytes()
+            # 8.3-Namen sind kurz: zwei Designs landen leicht auf demselben Namen → nachfragen
+            if any(f == name for f, _ in self.image.list_files()):
+                ans = QMessageBox.question(self, tr("msg_overwrite_title"),
+                                           tr("msg_overwrite_text").format(name=name))
+                if ans != QMessageBox.Yes:
+                    return
             self.image.add_file(name, data)
             self._refresh_list()
         except Exception as exc:

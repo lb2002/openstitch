@@ -263,6 +263,53 @@ class RunObject(EmbObject):
 
 
 @dataclass
+class ColumnObject(EmbObject):
+    """Manuelle Satinsäule: gezeichnete Mittellinie + Breite.
+
+    Die Stiche stehen exakt senkrecht zur gezeichneten Linie (wie „Column A/B“ in kommerziellen
+    Programmen) – kein Rückraten der Mittellinie per Skelett wie beim Flächen-Satin."""
+    geom: Any = None  # LineString / MultiLineString (Mittellinie)
+    width: float = 3.0
+    spacing: float = 0.4
+    pull_comp: float = 0.15
+    underlay: bool = True
+    kind: str = "column"
+
+    PARAMS = (("width", "Säulenbreite (mm)", float, 0.6, 12.0, 0.1),
+              ("spacing", "Dichte (mm)", float, 0.2, 1.2, 0.05),
+              ("pull_comp", "Zugkompensation (mm)", float, 0.0, 0.8, 0.05),
+              ("underlay", "Unterlage", bool, 0, 0, 0))
+
+    def local_geom(self):
+        return self.geom
+
+    def bounds(self):
+        g = self.world_geom()
+        if g is None or g.is_empty:
+            return (0, 0, 0, 0)
+        return g.buffer(self.width * m_scale(self.transform) / 2.0).bounds
+
+    def runs(self, start=None):
+        from ..engine.column import column_runs
+        g = self.world_geom()
+        w = self.width * m_scale(self.transform)
+        out: list[list[Pt]] = []
+        cur = start
+        lines = lines_of(g)
+        while lines:
+            if cur is not None:
+                lines.sort(key=lambda l: min(dist(cur, l.coords[0]), dist(cur, l.coords[-1])))
+            l = lines.pop(0)
+            rs = column_runs(list(l.coords), w, spacing=self.spacing, pull_comp=self.pull_comp,
+                             underlay="center" if self.underlay else "none", start=cur)
+            rs = [r for r in rs if len(r) >= 2]
+            if rs:
+                out.extend(rs)
+                cur = rs[-1][-1]
+        return out
+
+
+@dataclass
 class StitchesObject(EmbObject):
     """Importierte Stiche (z. B. aus DST/EXP). Stiche sind fix, können aber transformiert werden."""
     stitch_runs: list = field(default_factory=list)  # list[list[Pt]] lokal
@@ -282,7 +329,7 @@ class StitchesObject(EmbObject):
 
 
 # Textobjekt ist in text.py definiert (benötigt Font-Engine), Registrierung dort.
-OBJECT_TYPES: dict[str, type] = {"fill": FillObject, "satin": SatinObject, "run": RunObject,
+OBJECT_TYPES: dict[str, type] = {"fill": FillObject, "satin": SatinObject, "run": RunObject, "column": ColumnObject,
                                  "stitches": StitchesObject}
 
 
@@ -310,12 +357,42 @@ def _geom_dict(obj: EmbObject, d: dict) -> dict:
     return d
 
 
-for _cls in (FillObject, SatinObject, RunObject):
+for _cls in (FillObject, SatinObject, RunObject, ColumnObject):
     _orig = _cls.to_dict
 
     def _to_dict(self, _orig=_orig):
         return _geom_dict(self, _orig(self))
     _cls.to_dict = _to_dict
+
+
+def color_sorted(objects: list[EmbObject]) -> list[EmbObject]:
+    """Farbwechsel minimieren, ohne die Überdeckung zu verändern.
+
+    Ein Objekt darf nur dann nach vorne zu einem früheren Block gleicher Farbe rutschen, wenn es
+    keines der übersprungenen Objekte berührt – sonst würde es plötzlich darunter statt darüber
+    gestickt (das naive Gruppieren nach Farbe zerstört genau das)."""
+    geoms = {}
+
+    def footprint(o):
+        if o.id not in geoms:
+            g = o.world_geom()
+            geoms[o.id] = None if g is None or g.is_empty else g.buffer(0.3)
+        return geoms[o.id]
+
+    out: list[EmbObject] = []
+    for o in objects:
+        pos = len(out)
+        # rückwärts nach dem letzten Objekt gleicher Farbe suchen, solange nichts überlappt
+        for k in range(len(out) - 1, -1, -1):
+            prev = out[k]
+            if prev.thread.hex == o.thread.hex:
+                pos = k + 1
+                break
+            fo, fp = footprint(o), footprint(prev)
+            if fo is None or fp is None or fo.intersects(fp):
+                break
+        out.insert(pos, o)
+    return out
 
 
 # ---------------------------------------------------------------------------

@@ -346,3 +346,15 @@ def test_jef_export_keeps_trims(tmp_path):
     export_plan(plan, path)
     raw = open(path, "rb").read()
     assert raw.count(b"\x80\x02\x00\x00\x80\x02\x00\x00\x80\x02\x00\x00") >= plan.trim_count - 1
+
+
+def test_color_sort_respects_overlaps():
+    from openstitch.core.design import color_sorted
+    red, blue = Thread((200, 0, 0)), Thread((0, 0, 200))
+    a = FillObject(red, geom=Point(-30, 0).buffer(5))
+    b = FillObject(blue, geom=Point(0, 0).buffer(5))
+    c = FillObject(red, geom=Point(30, 0).buffer(5))
+    assert [o.id for o in color_sorted([a, b, c])] == [a.id, c.id, b.id]
+    # c liegt jetzt auf b → darf nicht unter b rutschen
+    c2 = FillObject(red, geom=Point(4, 0).buffer(5))
+    assert [o.id for o in color_sorted([a, b, c2])] == [a.id, b.id, c2.id]

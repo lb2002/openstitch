@@ -213,6 +213,19 @@ _TABLE.update({
 })
 
 
+# Satinsäule & Diskette
+_TABLE.update({
+    "kind_column": ("Satinsäule", "Satin column", "Colonne satin", "Columna satén"),
+    "param_column_width": ("Säulenbreite (mm)", "Column width (mm)", "Largeur de colonne (mm)",
+                           "Ancho de columna (mm)"),
+    "msg_overwrite_title": ("Datei ersetzen?", "Replace file?", "Remplacer le fichier ?", "¿Reemplazar archivo?"),
+    "msg_overwrite_text": ("Auf der Diskette gibt es bereits {name}. Ersetzen?",
+                           "{name} already exists on the floppy image. Replace it?",
+                           "{name} existe déjà sur la disquette. Le remplacer ?",
+                           "{name} ya existe en el disquete. ¿Reemplazarlo?"),
+})
+
+
 def tr_all(key: str) -> list[str]:
     return list(_TABLE.get(key, (key,) * 4))
 

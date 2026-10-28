@@ -41,7 +41,7 @@ from ..auto.palette import CATALOG_PALETTES, active_palette, nearest_thread, set
 from ..i18n import (
     LANGUAGES, current_lang, fmt_int, init_lang, key_for, machine_display_name, set_lang, tr, tr_opt,
 )
-from ..core.design import HOOPS, Design, EmbObject, FillObject, Hoop, RunObject, SatinObject
+from ..core.design import HOOPS, Design, EmbObject, FillObject, Hoop, RunObject, SatinObject, color_sorted
 from ..core.machines import MACHINE_PROFILES, MachineProfile
 from ..core.stitchplan import Thread
 from ..engine.pro_tools import create_applique_objects, import_svg, run_quality_doctor
@@ -1520,15 +1520,12 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def action_optimize_color_order(self):
-        self._snapshot("Farbwechsel optimieren")
         objs = self.canvas.design.objects
-        grouped: list[EmbObject] = []
-        seen_hex: list[str] = []
-        for o in objs:
-            if o.thread.hex not in seen_hex:
-                seen_hex.append(o.thread.hex)
-        for hx in seen_hex:
-            grouped.extend([o for o in objs if o.thread.hex == hx])
+        # Nur umsortieren, wo sich nichts überdeckt – die Stapelreihenfolge bleibt sichtbar gleich
+        grouped = color_sorted(objs)
+        if [o.id for o in grouped] == [o.id for o in objs]:
+            return
+        self._snapshot("Farbwechsel optimieren")
         self.canvas.design.objects = grouped
         self.rebuild_plan()
 
