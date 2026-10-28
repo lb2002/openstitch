@@ -20,6 +20,15 @@ from collections import defaultdict
 from ..core.stitchplan import Cmd, Stitch, StitchPlan
 
 
+def _is_turn(a: tuple[float, float], s: Stitch, nxt: Stitch) -> bool:
+    """Wendepunkt (> 60° Richtungswechsel), z. B. Reihenwechsel im Tatami oder Satin-Kante.
+
+    Solche Einstiche definieren die Kontur – wer sie als „Mikrostich“ entfernt, franst die Kante aus."""
+    ux, uy = s.x - a[0], s.y - a[1]
+    vx, vy = nxt.x - s.x, nxt.y - s.y
+    return ux * vx + uy * vy < 0.5 * math.hypot(ux, uy) * math.hypot(vx, vy)
+
+
 def optimize_stitches_for_melco(
     stitches: list[Stitch],
     min_stitch_mm: float = 0.45,
@@ -46,7 +55,7 @@ def optimize_stitches_for_melco(
 
         if last_xy is not None:
             d = math.hypot(s.x - last_xy[0], s.y - last_xy[1])
-            if d < min_stitch_mm and not is_last_of_run:
+            if d < min_stitch_mm and not is_last_of_run and not _is_turn(last_xy, s, stitches[i + 1]):
                 continue
 
         cell = (int(math.floor(s.x / cell_size_mm)), int(math.floor(s.y / cell_size_mm)))

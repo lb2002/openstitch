@@ -2,6 +2,12 @@
 
 Die Glyphen-Umrisse werden mit fontTools gelesen, Kurven geglättet und je Buchstabe
 automatisch als Satin (schmale Striche) oder Tatami (breite Striche) gestickt.
+
+Zusätzlich gibt es die eingebaute Einstrich-Kleinschrift „OpenStitch Micro“
+(Spezifikation ``builtin:micro``, siehe ``fonts_micro``): Mittellinien-Glyphen, die als
+schmale Satinsäulen bzw. Dreifachstich gestickt werden. Empfehlung: unter ~6 mm
+Versalhöhe liefert sie deutlich lesbarere Schrift als TrueType-Umrisse (die Standard-
+Schrift bleibt trotzdem die System-Schrift – die Micro-Schrift wird nur angeboten).
 """
 from __future__ import annotations
 
@@ -15,12 +21,24 @@ from functools import lru_cache
 from fontTools.pens.basePen import BasePen
 from fontTools.ttLib import TTCollection, TTFont
 from shapely import affinity
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import GeometryCollection, LineString, MultiPolygon, Point, Polygon
 from shapely.ops import unary_union
 
-from .core.design import OBJECT_TYPES, EmbObject, FillObject, SatinObject
+from .core.design import OBJECT_TYPES, EmbObject, FillObject, SatinObject, m_scale
 from .core.stitchplan import Thread
 from .engine.geom import clean, dist, main_axis_angle, polygons_of
+from .fonts_micro import MICRO_NAME, MICRO_SPEC
+from .fonts_micro import layout as micro_layout
+from .fonts_micro import mark_strokes as micro_mark_strokes
+from .fonts_micro import pull_comp_for as micro_pull_comp
+from .fonts_micro import text_runs as micro_text_runs
+from .fonts_micro import run_length as micro_run_length
+from .fonts_micro import stroke_width as micro_stroke_width
+
+
+def is_builtin_font(spec: str | None) -> bool:
+    """Eingebaute Schrift (kein TTF-Pfad), z. B. ``builtin:micro``."""
+    return bool(spec) and str(spec).startswith("builtin:")
 
 
 class _FlattenPen(BasePen):
@@ -73,7 +91,10 @@ def font_dirs() -> list[str]:
 
 @lru_cache(maxsize=1)
 def list_fonts() -> dict[str, str]:
-    """Anzeigename → Pfad (Index bei TTC: 'pfad#index')."""
+    """Anzeigename → Pfad (Index bei TTC: 'pfad#index').
+
+    Die eingebaute Kleinschrift „OpenStitch Micro“ steht immer an erster Stelle
+    (Spezifikation ``builtin:micro`` statt Dateipfad)."""
     out: dict[str, str] = {}
     bundled = os.path.join(os.path.dirname(__file__), "fonts")
     for d in [bundled] + font_dirs():
@@ -91,7 +112,8 @@ def list_fonts() -> dict[str, str]:
                         out.setdefault(_font_name(f), f"{path}#{i}")
             except Exception:
                 continue
-    return dict(sorted(out.items(), key=lambda kv: kv[0].lower()))
+    out.pop(MICRO_NAME, None)
+    return {MICRO_NAME: MICRO_SPEC, **dict(sorted(out.items(), key=lambda kv: kv[0].lower()))}
 
 
 def _font_name(f: TTFont) -> str:
@@ -103,6 +125,8 @@ def _font_name(f: TTFont) -> str:
 
 @lru_cache(maxsize=16)
 def _load_font(spec: str) -> TTFont:
+    if is_builtin_font(spec):
+        raise ValueError(f"{spec!r} ist eine eingebaute Schrift, keine TTF/OTF-Datei")
     if "#" in spec:
         p, i = spec.rsplit("#", 1)
         return TTFont(p, fontNumber=int(i))
@@ -127,12 +151,18 @@ def default_font() -> str:
                  "Verdana Bold", "Arial", "Helvetica", "DejaVu Sans Bold", "DejaVu Sans"):
         if pref in fonts:
             return fonts[pref]
-    return next(iter(fonts.values()), "")
+    # Eingebaute Micro-Schrift nie stillschweigend zum Standard machen
+    return next((v for v in fonts.values() if not is_builtin_font(v)), "")
 
 
 def glyph_shapes(text: str, font_spec: str, height_mm: float, letter_spacing: float = 0.0,
                  line_spacing: float = 1.25):
     """Liefert Liste (zeichen, Polygon-Geometrie, Mittelpunkt-x) in mm; Grundlinie bei y=0."""
+    if is_builtin_font(font_spec):
+        # Micro-Schrift: Striche mit typischer Säulenbreite als Flächen
+        hw = max(micro_stroke_width(height_mm), 0.4) / 2
+        return [(ch, unary_union([_stroke_geom(s).buffer(hw) for s in st]), cx)
+                for ch, st, cx in micro_layout(text, height_mm, letter_spacing, line_spacing)]
     font = _load_font(font_spec)
     gs = font.getGlyphSet()
     cmap = font.getBestCmap() or {}
@@ -187,6 +217,16 @@ def glyph_shapes(text: str, font_spec: str, height_mm: float, letter_spacing: fl
     return out
 
 
+def _stroke_geom(stroke):
+    return Point(stroke[0]) if len(stroke) == 1 else LineString(stroke)
+
+
+def micro_glyph_geoms(text: str, height_mm: float, letter_spacing: float = 0.0):
+    """Micro-Schrift: Liste (zeichen, GeometryCollection der Striche in Stickreihenfolge, cx)."""
+    return [(ch, GeometryCollection([_stroke_geom(s) for s in st]), cx)
+            for ch, st, cx in micro_layout(text, height_mm, letter_spacing)]
+
+
 def arc_layout(glyphs, radius: float):
     """Buchstaben entlang eines Bogens anordnen. radius>0: Bogen oben, <0: unten."""
     if not radius:
@@ -222,7 +262,7 @@ class TextObject(EmbObject):
 
     PARAMS = (("text", "Text", str, 0, 0, 0),
               ("font", "Schrift", "font", 0, 0, 0),
-              ("height", "Buchstabenhöhe (mm)", float, 3.0, 200.0, 0.5),
+              ("height", "Buchstabenhöhe (mm)", float, 2.0, 200.0, 0.5),
               ("letter_spacing", "Zeichenabstand (mm)", float, -5.0, 20.0, 0.1),
               ("arc_radius", "Bogenradius (mm, 0 = gerade)", float, -500.0, 500.0, 5.0),
               ("mode", "Stichart", ["auto", "satin", "fill"], 0, 0, 0),
@@ -233,19 +273,46 @@ class TextObject(EmbObject):
         if not self.font:
             self.font = default_font()
 
+    @property
+    def is_micro(self) -> bool:
+        return is_builtin_font(self.font)
+
     def _glyphs(self):
         key = (self.text, self.font, self.height, self.letter_spacing, self.arc_radius)
         if getattr(self, "_gkey", None) != key:
-            g = glyph_shapes(self.text, self.font, self.height, self.letter_spacing) if self.font else []
+            if self.is_micro:
+                g = micro_glyph_geoms(self.text, self.height, self.letter_spacing)
+            else:
+                g = glyph_shapes(self.text, self.font, self.height, self.letter_spacing) if self.font else []
             self._gcache = arc_layout(g, self.arc_radius)
             self._gkey = key
         return self._gcache
 
     def local_geom(self):
+        if self.is_micro:
+            # Striche mit Säulenbreite gepuffert → Auswahlrahmen & Trefferprüfung
+            hw = max(micro_stroke_width(self.height), 0.4) / 2
+            gs = [g.buffer(hw) for _, g, _ in self._glyphs() if not g.is_empty]
+            return unary_union(gs) if gs else MultiPolygon()
         gs = [g for _, g, _ in self._glyphs()]
         return unary_union(gs) if gs else MultiPolygon()
 
+    def _micro_runs(self, start=None):
+        """Micro-Schrift: Mittellinien je Zeichen als schmale Satinsäulen / Dreifachstich."""
+        cap = self.height * m_scale(self.transform)        # wirksame Versalhöhe in mm
+        w = micro_stroke_width(cap)
+        pc = micro_pull_comp(w, self.pull_comp)   # schmale Säulen: wenig Zugkompensation
+        glyph_strokes, thin = [], []
+        for ch, g, _ in self._glyphs():
+            wg = affinity.affine_transform(g, self.transform)
+            glyph_strokes.append([[tuple(c) for c in p.coords] for p in wg.geoms])
+            thin.append(micro_mark_strokes(ch))
+        return micro_text_runs(glyph_strokes, w, spacing=self.density, pull_comp=pc,
+                               run_len=micro_run_length(cap), glyph_thin=thin)
+
     def runs(self, start=None):
+        if self.is_micro:
+            return self._micro_runs(start)
         out = []
         cur = start
         for ch, g, _ in self._glyphs():

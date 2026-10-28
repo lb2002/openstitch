@@ -17,8 +17,10 @@ def _shade(c: QColor, f: float) -> QColor:
                   int(c.blue() + (255 - c.blue()) * t))
 
 
-def iter_segments(plan: StitchPlan, upto: int | None = None):
-    """Liefert je Farbblock die genähten Segmente: (block, [(x0,y0,x1,y1), ...], jumps)."""
+def iter_segments(plan: StitchPlan, upto: int | None = None, start: int = 0):
+    """Liefert je Farbblock die genähten Segmente: (block, [(x0,y0,x1,y1), ...], jumps).
+
+    `start`: nur Segmente nach dem start-ten Stich (für inkrementelles Weiterzeichnen im Simulator)."""
     n = 0
     for block in plan.blocks:
         segs, jumps = [], []
@@ -28,11 +30,11 @@ def iter_segments(plan: StitchPlan, upto: int | None = None):
                 break
             if s.cmd == Cmd.STITCH:
                 n += 1
-                if prev is not None:
+                if prev is not None and n > start:
                     segs.append((prev[0], prev[1], s.x, s.y))
                 prev = (s.x, s.y)
             elif s.cmd == Cmd.JUMP:
-                if prev is not None:
+                if prev is not None and n >= start:
                     jumps.append((prev[0], prev[1], s.x, s.y))
                 prev = (s.x, s.y)
         yield block, segs, jumps
@@ -41,11 +43,11 @@ def iter_segments(plan: StitchPlan, upto: int | None = None):
 
 
 def draw_plan(p: QPainter, plan: StitchPlan, upto: int | None = None, realistic: bool = True,
-              thread_w: float = 0.38, show_jumps: bool = False, px_per_mm: float = 4.0):
+              thread_w: float = 0.38, show_jumps: bool = False, px_per_mm: float = 4.0, start: int = 0):
     """Zeichnet in mm-Koordinaten (Painter muss bereits skaliert sein)."""
     p.setRenderHint(QPainter.Antialiasing, True)
     last_pt = None
-    for block, segs, jumps in iter_segments(plan, upto):
+    for block, segs, jumps in iter_segments(plan, upto, start):
         if not segs:
             continue
         col = QColor(*block.thread.color)

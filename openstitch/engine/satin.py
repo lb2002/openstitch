@@ -298,11 +298,42 @@ def _zigzag(cross, max_stitch: float, short_stitch: bool = True) -> list[Pt]:
     return pts
 
 
-def _underlay(cross, width_avg: float, spacing: float) -> list[Pt]:
-    """Unterlage: Mittellauf hin, bei breiteren Säulen Zickzack zurück."""
+UNDERLAY_STYLES = ["auto", "mitte", "kante", "zickzack", "kante+zickzack"]
+
+
+def auto_underlay_style(width_avg: float) -> str:
+    """Wie kommerzielle Software: schmal → Mittellauf, mittel → Kantenlauf, breit → Kante + Zickzack."""
+    if width_avg <= 2.0:
+        return "mitte"
+    if width_avg <= 4.5:
+        return "kante"
+    return "kante+zickzack"
+
+
+def _edge_walk(cross, inset: float = 0.45) -> list[Pt]:
+    """Kantenlauf: entlang der linken Kante hin, entlang der rechten zurück (stabilisiert beide Ränder)."""
+    def ins(c, p):
+        d = dist(c, p)
+        if d < inset * 2:
+            return c
+        return (c[0] + (p[0] - c[0]) * (d - inset) / d, c[1] + (p[1] - c[1]) * (d - inset) / d)
+    left = [ins(c, L) for c, L, _ in cross]
+    right = [ins(c, R) for c, _, R in reversed(cross)]
+    return resample_path(left + right, 2.0)
+
+
+def _underlay(cross, width_avg: float, spacing: float, style: str = "auto") -> list[Pt]:
+    """Unterlage je nach Stil: Mittellauf, Kantenlauf, Zickzack oder Kante + Zickzack."""
+    if style == "auto":
+        style = auto_underlay_style(width_avg)
+    if style == "kante":
+        return _edge_walk(cross)
     centers = [c for c, _, _ in cross]
-    out = resample_path(centers, 2.0)
-    if width_avg > 3.0:
+    out = _edge_walk(cross) if style == "kante+zickzack" else resample_path(centers, 2.0)
+    if style == "kante+zickzack":
+        # Kantenlauf endet am Start → Zickzack läuft hin (Satin kommt dann zurück)
+        cross = list(reversed(cross))
+    if style in ("zickzack", "kante+zickzack"):
         back = list(reversed(cross))
         zz = []
         step = max(1, int(round(2.2 / (spacing / 2))))
@@ -356,7 +387,8 @@ def _puff_perforation_underlay(cross) -> list[Pt]:
 
 
 def satin_runs(geom, spacing: float = 0.4, pull_comp: float = 0.15, max_stitch: float = 7.0,
-               underlay: bool = True, start: Pt | None = None, puff_3d: bool = False) -> SatinResult:
+               underlay: bool = True, start: Pt | None = None, puff_3d: bool = False,
+               underlay_style: str = "auto") -> SatinResult:
     res = SatinResult()
     leftovers = []
     from .fill import _travel  # lokale Abhängigkeit vermeiden
@@ -412,8 +444,8 @@ def satin_runs(geom, spacing: float = 0.4, pull_comp: float = 0.15, max_stitch: 
                 seq.extend(_puff_perforation_underlay(cross))
                 seq.extend(_zigzag(cross, max_stitch=max(max_stitch, 10.0), short_stitch=False))
             else:
-                if underlay and wavg > 1.6:
-                    ul = _underlay(cross, wavg, spacing)
+                if underlay and wavg > 1.2:
+                    ul = _underlay(cross, wavg, spacing, underlay_style)
                     seq.extend(ul)
                     # Satin startet dort, wo die Unterlage endet
                     if dist(ul[-1], cross[0][0]) > dist(ul[-1], cross[-1][0]):

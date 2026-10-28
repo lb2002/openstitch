@@ -45,7 +45,11 @@
 * **3D-Puff-Schaumstoff-Modus (für Caps):** Erzeugt hochdichte Satin-Säulen (0.24 mm) mit speziell perforierenden **Pinch-End-Caps** zum sauberen Durchtrennen von 2–3 mm 3D-Stick-Schaumstoff.
 * **1-Klick Applikation (Appliqué):** Erzeugt automatisch Platzierungslinie (mit Maschinen-Stopp), Stoff-Fixiernaht (Tack-Down) und breite Satin-Deckkante.
 * **PhotoStitch:** Verwandelt Porträt- und Landschaftsfotos in Monochrom-, Sepia- oder 4-Farb-CMYK-Wellenstickerei.
-* **SVG-Vektor-Import & TTF/OTF-Schrift-Generator** (inkl. Bogentext & automatischer Satin/Tatami-Wahl).
+* **Satinsäulen entlang der gezeichneten Mittellinie** (`S`): Stiche stehen senkrecht zur Linie, mit einstellbarer Breite, Kurzstich in engen Kurven, Eckenbehandlung und automatischer Unterlage (Mittellauf / Kantenlauf / Zickzack je nach Säulenbreite).
+* **OpenStitch Micro – kleine Schrift ab 2.5 mm:** Eingebaute Einlinien-Stickschrift, gestickt wie die Kleinschriften kommerzieller Programme. TrueType-Umrisse laufen unter ~4.5 mm zu, Micro bleibt lesbar:
+
+  ![OpenStitch Micro vs. TrueType bei 2.5 und 3 mm](./assets/micro_font_comparison.png)
+* **SVG-Vektor-Import** (Transformationen, Bögen, Stile, `<use>`, Füllregeln) & **TTF/OTF-Schrift-Generator** (inkl. Bogentext & automatischer Satin/Tatami-Wahl).
 
 ### 3. 🩺 Stichdichte-Wächter, Heatmap & Qualitäts-Doktor (`F7`)
 * **Automatischer Anti-Fadenbruch-Filter (`density_guard`):** Verhindert Nadelkollisionen, Fadennester („Birdnesting“) und Stofflöcher.
@@ -70,10 +74,10 @@
 ## 🚀 Quickstart & Installation
 
 ### Option A: 1-Klick Direkt-Download (ohne Python-Installation!)
-Lade dir auf der **[GitHub Release-Seite (v0.2.0)](https://github.com/lb2002/openstitch/releases/tag/v0.2.0)** direkt die fertige Anwendung für dein System herunter:
-* 🪟 **Windows (64-Bit Einzeldatei):** **[`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/download/v0.2.0/OpenStitch-Studio-Windows-x64.exe)** *(einfach herunterladen & doppelklicken, kein Entpacken nötig!)*
-* 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** **[`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.2.0/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)** *(`OpenStitch Studio.app`)*
-* 🍎 **macOS (Intel x64):** **[`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.2.0/OpenStitch-Studio-macOS-Intel-x64.zip)** *(`OpenStitch Studio.app`)*
+Lade dir auf der **[GitHub Release-Seite (latest)](https://github.com/lb2002/openstitch/releases/latest)** direkt die fertige Anwendung für dein System herunter:
+* 🪟 **Windows (64-Bit Einzeldatei):** **[`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Windows-x64.exe)** *(einfach herunterladen & doppelklicken, kein Entpacken nötig!)*
+* 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** **[`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)** *(`OpenStitch Studio.app`)*
+* 🍎 **macOS (Intel x64):** **[`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip)** *(`OpenStitch Studio.app`)*
 
 ---
 

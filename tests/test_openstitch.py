@@ -81,6 +81,7 @@ def test_auto_digitizer_and_gui():
     assert len(exp_bytes(plan)) > 600
 
     win = MainWindow()
+    win.wait_for_plan()
     assert win.canvas.plan.stitch_count > 500
     issues = run_quality_doctor(win.canvas.design, win.canvas.plan, max_needles=10)
     assert len(issues) >= 1
@@ -101,7 +102,7 @@ def test_auto_digitizer_and_gui():
 def test_all_machine_formats_binary_verification(tmp_path):
     """Exportiert ein komplexes Design in alle wichtigen Binärformate und verifiziert sie unabhängig."""
     win = MainWindow(show_tour_on_init=False)
-    plan = win.canvas.plan
+    plan = win.wait_for_plan()
     assert plan.stitch_count > 4000
 
     for ext in ("exp", "dst", "pes", "jef", "vp3", "xxx", "u01"):
@@ -181,3 +182,208 @@ def test_language_switch_and_thread_catalogs():
     assert win.swatch_grid.count() >= 25
     set_lang("de")
     win.close()
+
+
+def _max_stitch_len(plan):
+    import math
+    from openstitch.core.stitchplan import Cmd
+    longest = 0.0
+    for b in plan.blocks:
+        prev = None
+        for s in b.stitches:
+            if s.cmd == Cmd.STITCH and prev is not None:
+                longest = max(longest, math.hypot(s.x - prev[0], s.y - prev[1]))
+            if s.cmd in (Cmd.STITCH, Cmd.JUMP):
+                prev = (s.x, s.y)
+    return longest
+
+
+def test_no_stray_stitches_after_trim():
+    """Nach Trim + Sprung darf die Nadel nicht von der alten Position aus weiternähen."""
+    t = Thread((200, 30, 30), "Rot")
+    for obj in (SatinObject(t, geom=LineString([(-30, 0), (30, 0)]).buffer(2.5)),
+                FillObject(t, geom=Point(0, 0).buffer(30), angle=30)):
+        d = Design()
+        d.objects.append(obj)
+        plan = d.build_plan()
+        assert plan.trim_count >= 1
+        assert _max_stitch_len(plan) <= d.settings.max_stitch + 1e-6
+
+
+def test_undo_keeps_ids_and_coalesces_spinbox_edits():
+    win = MainWindow(show_tour_on_init=False)
+    d = win.canvas.design
+    obj = next(o for o in d.objects if o.kind == "fill")
+    win.canvas.selected = obj
+    ids_before = [o.id for o in d.objects]
+    depth = len(win._undo_stack)
+    # Spinbox-Ziehen: viele valueChanged-Signale → genau ein Undo-Schritt
+    for v in (0.45, 0.46, 0.47, 0.48):
+        win._set_obj_attr(obj, "spacing", v)
+    win._set_obj_attr(obj, "spacing", 0.48)  # unverändert → kein Snapshot
+    assert len(win._undo_stack) == depth + 1
+    win.action_undo()
+    assert [o.id for o in d.objects] == ids_before
+    assert win.canvas.selected.id == obj.id
+    restored = next(o for o in d.objects if o.id == obj.id)
+    assert restored.spacing != 0.48
+    win.close()
+
+
+def test_loaded_design_syncs_hoop_combo(tmp_path):
+    from openstitch.core.design import HOOPS
+    win = MainWindow(show_tour_on_init=False)
+    d = Design(name="Jacke")
+    d.hoop = HOOPS[8]
+    d.objects.append(FillObject(Thread((10, 10, 10)), geom=Point(0, 0).buffer(10)))
+    path = str(tmp_path / "jacke.ostitch")
+    save_project(d, path)
+    win.set_design(load_project(path), reset_undo=True)
+    assert win.cmb_hoop.currentData() is win.canvas.design.hoop
+    assert win.canvas.design.hoop.mode == "jacket"
+    win.close()
+
+
+def test_fit_to_hoop_keeps_text_scale():
+    win = MainWindow(show_tour_on_init=False)
+    t = TextObject(Thread((0, 0, 0)), text="AB", height=10.0)
+    t.transform = (2.0, 0.0, 0.0, 2.0, 0.0, 0.0)  # per Griff auf 200 % gezogen
+    win.set_design(Design(objects=[t]), reset_undo=True)
+    from openstitch.core.design import m_scale
+    h_before = t.height
+    w_before = t.bounds()[2] - t.bounds()[0]
+    win.action_fit_to_hoop()
+    obj = win.canvas.design.objects[0]
+    s = obj.height / h_before
+    # Der Einpass-Faktor landet in height, die per Griff gezogenen 200 % bleiben im Transform
+    assert abs(m_scale(obj.transform) - 2.0) < 1e-6
+    w_after = obj.bounds()[2] - obj.bounds()[0]
+    assert abs(w_after - w_before * s) < 0.05 * w_after
+    win.close()
+
+
+def test_single_objects_need_no_internal_trims():
+    """Unterlage → Deckstich und Satin-Endkappen → Säule laufen verdeckt, ohne Trim."""
+    t = Thread((200, 30, 30), "Rot")
+    for obj in (FillObject(t, geom=Point(0, 0).buffer(30), angle=30),
+                SatinObject(t, geom=LineString([(-30, 0), (30, 0)]).buffer(2.5))):
+        d = Design()
+        d.objects.append(obj)
+        plan = d.build_plan()
+        assert plan.trim_count == 1  # nur der Schlussschnitt
+        assert _max_stitch_len(plan) <= d.settings.max_stitch + 1e-6
+
+
+def test_plan_is_built_in_background():
+    """Editieren blockiert nicht: der Plan wird im Hintergrund gerechnet und danach übernommen."""
+    win = MainWindow(show_tour_on_init=False)
+    win.wait_for_plan()
+    before = win.canvas.plan
+    obj = next(o for o in win.canvas.design.objects if o.kind == "fill")
+    win._snapshot("test")
+    obj.spacing = 0.8
+    win.rebuild_plan()
+    plan = win.wait_for_plan()
+    assert plan is not before and plan.stitch_count < before.stitch_count
+    # mehrere schnelle Änderungen: nur der neueste Stand wird übernommen
+    for sp in (0.5, 0.6, 0.7):
+        obj.spacing = sp
+        win.rebuild_plan()
+    final = win.wait_for_plan()
+    d = Design(objects=[o.snapshot() for o in win.canvas.design.objects], hoop=win.canvas.design.hoop)
+    assert final.stitch_count == d.build_plan().stitch_count
+    win.close()
+
+
+def test_density_guard_keeps_fill_turn_points():
+    """Reihenwende-Punkte am Rand sind keine Mikrostiche – sonst franst die Kontur aus."""
+    import math
+    from openstitch.core.stitchplan import Cmd, Stitch
+    from openstitch.engine.density_guard import optimize_stitches_for_melco
+    zig = [Stitch(0, -1, Cmd.JUMP)]
+    for k in range(20):  # Tatami-artige Reihen im Abstand 0.4 mm
+        y = k * 0.4
+        xs = (0.0, 10.0) if k % 2 == 0 else (10.0, 0.0)
+        zig += [Stitch(xs[0], y), Stitch(5.0, y), Stitch(xs[1], y)]
+    out = optimize_stitches_for_melco(zig)
+    ends = [s for s in out if s.cmd == Cmd.STITCH and s.x in (0.0, 10.0)]
+    assert len(ends) == 40
+    # echte Mikrostiche auf gerader Strecke werden weiterhin entfernt
+    line = [Stitch(0, 0, Cmd.JUMP), Stitch(1, 0), Stitch(1.1, 0), Stitch(2, 0), Stitch(3, 0)]
+    assert len(optimize_stitches_for_melco(line)) == 4
+
+
+def test_satin_underlay_styles():
+    from openstitch.engine.satin import auto_underlay_style
+    assert auto_underlay_style(1.5) == "mitte"
+    assert auto_underlay_style(3.5) == "kante"
+    assert auto_underlay_style(6.0) == "kante+zickzack"
+    t = Thread((20, 40, 200), "Blau")
+    counts = {}
+    for style in ("mitte", "kante", "zickzack", "kante+zickzack"):
+        o = SatinObject(t, geom=LineString([(-20, 0), (20, 0)]).buffer(3.0), underlay_style=style)
+        d = Design(objects=[o])
+        plan = d.build_plan()
+        counts[style] = plan.stitch_count
+        assert plan.trim_count == 1 and _max_stitch_len(plan) <= d.settings.max_stitch
+    # Kantenlauf läuft hin und zurück → mehr Stiche als nur die Mitte
+    assert counts["kante"] > counts["mitte"] and counts["kante+zickzack"] > counts["kante"]
+    # alte Projekte ohne underlay_style laden weiter (Default "auto")
+    from openstitch.core.design import object_from_dict
+    dct = SatinObject(t, geom=Point(0, 0).buffer(2)).to_dict()
+    dct.pop("underlay_style")
+    assert object_from_dict(dct).underlay_style == "auto"
+
+
+def test_jef_export_keeps_trims(tmp_path):
+    import pyembroidery as pe
+    d = Design()
+    t = Thread((200, 30, 30), "Rot")
+    for x in (-30, 0, 30):  # drei getrennte Flächen gleicher Farbe → Trims dazwischen
+        d.objects.append(FillObject(t, geom=Point(x, 0).buffer(6)))
+    plan = d.build_plan()
+    path = str(tmp_path / "t.jef")
+    export_plan(plan, path)
+    raw = open(path, "rb").read()
+    assert raw.count(b"\x80\x02\x00\x00\x80\x02\x00\x00\x80\x02\x00\x00") >= plan.trim_count - 1
+
+
+def test_color_sort_respects_overlaps():
+    from openstitch.core.design import color_sorted
+    red, blue = Thread((200, 0, 0)), Thread((0, 0, 200))
+    a = FillObject(red, geom=Point(-30, 0).buffer(5))
+    b = FillObject(blue, geom=Point(0, 0).buffer(5))
+    c = FillObject(red, geom=Point(30, 0).buffer(5))
+    assert [o.id for o in color_sorted([a, b, c])] == [a.id, c.id, b.id]
+    # c liegt jetzt auf b → darf nicht unter b rutschen
+    c2 = FillObject(red, geom=Point(4, 0).buffer(5))
+    assert [o.id for o in color_sorted([a, b, c2])] == [a.id, b.id, c2.id]
+
+
+def test_quality_doctor_round_hoop_uses_real_radius():
+    from openstitch.core.design import HOOPS
+    d = Design(objects=[FillObject(Thread((1, 1, 1)), geom=Point(0, 0).buffer(64))])
+    d.hoop = HOOPS[2]  # rund 15 cm → Radius 75 mm; Kreis r=64 passt (Bounding-Box-Ecke wäre 90 mm)
+    issues = run_quality_doctor(d, d.build_plan(), max_needles=10)
+    assert len(issues) == 1 and issues[0].startswith("✅")
+
+
+def test_column_object_stitches_perpendicular_and_round_trips(tmp_path):
+    import math
+    from openstitch.core.design import ColumnObject
+    from openstitch.core.stitchplan import Cmd
+    line = LineString([(-20, 0), (0, 0), (15, 10)])
+    col = ColumnObject(Thread((10, 120, 60), "Grün"), geom=line, width=3.0)
+    d = Design(objects=[col])
+    plan = d.build_plan()
+    assert plan.stitch_count > 100 and _max_stitch_len(plan) <= d.settings.max_stitch + 1e-6
+    # Auf dem geraden Stück (x < -3) stehen die Satinstiche senkrecht zur Linie (also vertikal)
+    pts = [(s.x, s.y) for s in plan.blocks[0].stitches if s.cmd == Cmd.STITCH]
+    vertical = [abs(b[1] - a[1]) / max(1e-9, math.dist(a, b)) for a, b in zip(pts, pts[1:])
+                if -17 < a[0] < -3 and -17 < b[0] < -3 and math.dist(a, b) > 2.5]
+    assert vertical and sum(vertical) / len(vertical) > 0.95
+    assert col.bounds()[3] - col.bounds()[1] > 3.0 * 0.9 + 10  # Breite fliesst in die Bounds ein
+    path = str(tmp_path / "col.ostitch")
+    save_project(d, path)
+    c2 = load_project(path).objects[0]
+    assert c2.kind == "column" and abs(c2.width - 3.0) < 1e-9

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import os
 
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QImage, QPageLayout, QPageSize, QPainter, QPdfWriter, QPen
@@ -10,6 +11,7 @@ from PySide6.QtGui import QColor, QFont, QImage, QPageLayout, QPageSize, QPainte
 from .. import APP_NAME, __version__
 from ..core.design import HOOPS, Design, Hoop, Settings, object_from_dict
 from ..core.stitchplan import StitchPlan
+from ..i18n import fmt_int, machine_display_name, tr
 from ..render import render_image
 
 
@@ -29,12 +31,15 @@ def save_project(design: Design, path: str) -> None:
         "settings": design.settings.__dict__,
         "objects": [o.to_dict() for o in design.objects],
     }
-    with open(path, "w", encoding="utf-8") as f:
+    # Erst in eine Temp-Datei schreiben: ein Fehler mitten im Schreiben darf das alte Projekt nicht zerstören
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
 
 
 def load_project(path: str) -> Design:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8-sig") as f:
         data = json.load(f)
     h = data.get("hoop", {})
     hoop = Hoop(
@@ -53,6 +58,7 @@ def load_project(path: str) -> Design:
 def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str, machine_name: str | None = None) -> None:
     """Erzeugt ein druckfertiges Produktionsblatt (PDF) für alle Stickmaschinen."""
     mach_str = machine_name or getattr(design.settings, "machine_name", "Universal Standard (15 Nadeln)")
+    mach_str = machine_display_name(mach_str)
     max_nd = max(1, getattr(design.settings, "needles", 15))
     pdf = QPdfWriter(path)
     pdf.setPageSize(QPageSize(QPageSize.A4))
@@ -64,11 +70,11 @@ def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str, machine_na
     # Titelzeile
     p.setPen(QColor(25, 28, 34))
     p.setFont(QFont("Segoe UI", 16, QFont.Bold))
-    p.drawText(m, m + 60, f"{design.name}  —  Produktions- & Einrichteblatt")
+    p.drawText(m, m + 60, tr("pdf_title").format(design.name))
     p.setFont(QFont("Segoe UI", 9))
     p.setPen(QColor(100, 105, 115))
-    now_str = _dt.datetime.now().strftime("%d.%m.%Y %H:%M")
-    p.drawText(m, m + 115, f"Erstellt mit {APP_NAME} Studio {__version__} am {now_str}")
+    now_str = _dt.datetime.now().strftime(tr("pdf_date_fmt"))
+    p.drawText(m, m + 115, tr("pdf_created").format(app=f"{APP_NAME} Studio {__version__}", date=now_str))
 
     # Kennzahlen-Box
     x0, y0, x1, y1 = plan.bounds()
@@ -80,14 +86,15 @@ def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str, machine_na
     p.drawRoundedRect(m, box_y, W - 2 * m, box_h, 18, 18)
 
     stats = [
-        ("Stiche gesamt", f"{plan.stitch_count:,}".replace(",", "'")),
-        ("Grösse (B × H)", f"{bw:.1f} × {bh:.1f} mm"),
-        ("Farbwechsel / Blöcke", f"{plan.color_changes} ({len(plan.blocks)} Blöcke)"),
-        ("Fadenschnitte (Trims)", f"{plan.trim_count}"),
-        ("Stickrahmen", f"{design.hoop.name} ({design.hoop.width:.0f}×{design.hoop.height:.0f} mm)"),
-        (f"Laufzeit (ca. {design.settings.machine_spm} SPM)", f"{plan.estimated_minutes(design.settings.machine_spm):.1f} Min."),
-        ("Oberfadenbedarf", f"{plan.thread_length_m():.1f} m"),
-        ("Maschinenprofil", mach_str[:28]),
+        (tr("pdf_total_stitches"), fmt_int(plan.stitch_count)),
+        (tr("pdf_size"), f"{bw:.1f} × {bh:.1f} mm"),
+        (tr("pdf_color_changes"), tr("pdf_blocks_val").format(plan.color_changes, len(plan.blocks))),
+        (tr("pdf_trims"), f"{plan.trim_count}"),
+        (tr("pdf_hoop"), f"{design.hoop.display_name} ({design.hoop.width:.0f}×{design.hoop.height:.0f} mm)"),
+        (tr("pdf_runtime").format(design.settings.machine_spm),
+         f"{plan.estimated_minutes(design.settings.machine_spm):.1f} {tr('stats_min')}"),
+        (tr("pdf_thread_usage"), f"{plan.thread_length_m():.1f} m"),
+        (tr("pdf_machine"), mach_str[:28]),
     ]
     col_w = (W - 2 * m - 60) // 4
     for idx, (k, v) in enumerate(stats):
@@ -118,7 +125,7 @@ def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str, machine_na
     tw = W - m - tx
     p.setFont(QFont("Segoe UI", 11, QFont.Bold))
     p.setPen(QColor(25, 28, 34))
-    p.drawText(tx, prev_y + 40, f"Farbfolge & Nadelzuordnung ({max_nd} Nadeln)")
+    p.drawText(tx, prev_y + 40, tr("pdf_sequence").format(max_nd))
 
     # eindeutige Farben → Nadeln 1..max_nd
     needle_map: dict[str, int] = {}
@@ -142,10 +149,10 @@ def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str, machine_na
         p.setFont(QFont("Segoe UI", 9, QFont.Bold))
         label = b.thread.name or b.thread.hex
         code = f" ({b.thread.code})" if b.thread.code else ""
-        p.drawText(tx + 70, ry + 24, f"{bi + 1}. Nadel {needle}: {label}{code}")
+        p.drawText(tx + 70, ry + 24, f"{bi + 1}. {tr('needle')} {needle}: {label}{code}")
         p.setFont(QFont("Segoe UI", 8))
         p.setPen(QColor(100, 105, 115))
-        p.drawText(tx + 70, ry + 50, f"{n_st} Stiche   ·   {b.thread.hex.upper()}")
+        p.drawText(tx + 70, ry + 50, f"{fmt_int(n_st)} {tr('stats_stitches')}   ·   {b.thread.hex.upper()}")
         ry += row_h
 
     p.end()

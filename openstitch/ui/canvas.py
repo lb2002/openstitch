@@ -19,10 +19,12 @@ from PySide6.QtGui import (
 )
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QWidget
-from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import LineString, MultiLineString, Point, Polygon
+from shapely.ops import unary_union
 
-from ..core.design import Design, EmbObject, FillObject, RunObject, SatinObject, compose
+from ..core.design import ColumnObject, Design, EmbObject, FillObject, RunObject, SatinObject, compose, m_scale
 from ..core.stitchplan import Cmd, StitchPlan, Thread
+from ..i18n import tr
 from ..render import draw_plan
 
 
@@ -110,6 +112,21 @@ class StitchCanvas(QWidget):
         key = (self._plan_version, q_ppm, self.realistic, self.show_jumps, self.sim_limit)
         if self._cache_key == key and self._cache_img is not None:
             return
+        # Simulator läuft vorwärts: nur die neuen Stiche auf das vorhandene Bild zeichnen,
+        # statt bei jedem Timer-Tick den ganzen Plan neu zu rendern
+        old = self._cache_key
+        if (old is not None and self._cache_img is not None and old[:4] == key[:4]
+                and old[4] is not None and (key[4] is None or key[4] > old[4])):
+            sp = QPainter(self._cache_img)
+            sp.scale(self._cache_px_per_mm, self._cache_px_per_mm)
+            sp.translate(-self._cache_origin_mm[0], -self._cache_origin_mm[1])
+            pt = draw_plan(sp, self.plan, upto=key[4], realistic=self.realistic, show_jumps=self.show_jumps,
+                           px_per_mm=self._cache_px_per_mm, start=old[4])
+            sp.end()
+            if pt is not None:
+                self._last_sim_pt = pt
+            self._cache_key = key
+            return
         x0, y0, x1, y1 = self.plan.bounds()
         pad = 6.0
         w_mm = max(10.0, (x1 - x0) + 2 * pad)
@@ -137,21 +154,24 @@ class StitchCanvas(QWidget):
         self._cache_key = key
 
     def _draw_heatmap(self, p: QPainter):
-        counts: dict[tuple[int, int], int] = defaultdict(int)
-        for b in self.plan.blocks:
-            for s in b.stitches:
-                if s.cmd == Cmd.STITCH:
-                    counts[(int(math.floor(s.x)), int(math.floor(s.y)))] += 1
+        # Zellzählung nur einmal pro Plan-Version, nicht bei jedem Repaint (Mausbewegung!)
+        if getattr(self, "_heat_key", None) != self._plan_version:
+            counts: dict[tuple[int, int], int] = defaultdict(int)
+            for b in self.plan.blocks:
+                for s in b.stitches:
+                    if s.cmd == Cmd.STITCH:
+                        counts[(int(math.floor(s.x)), int(math.floor(s.y)))] += 1
+            buckets: list[list[QRectF]] = [[], [], []]
+            for (gx, gy), c in counts.items():
+                buckets[0 if c <= 6 else 1 if c <= 12 else 2].append(QRectF(gx, gy, 1.0, 1.0))
+            self._heat_rects = buckets
+            self._heat_key = self._plan_version
         p.setPen(Qt.NoPen)
-        for (gx, gy), c in counts.items():
-            if c <= 6:
-                col = QColor(40, 200, 90, 95)
-            elif c <= 12:
-                col = QColor(255, 195, 0, 145)
-            else:
-                col = QColor(255, 35, 35, 190)
-            p.setBrush(col)
-            p.drawRect(QRectF(gx, gy, 1.0, 1.0))
+        for col, rects in zip((QColor(40, 200, 90, 95), QColor(255, 195, 0, 145), QColor(255, 35, 35, 190)),
+                              self._heat_rects):
+            if rects:
+                p.setBrush(col)
+                p.drawRects(rects)
 
     # ----------------------------------------------------------- Zeichnen
     def paintEvent(self, event):
@@ -379,6 +399,10 @@ class StitchCanvas(QWidget):
                     if math.hypot(mm[0] - nx, mm[1] - ny) <= 8.0 / self.px_per_mm:
                         self.about_to_modify.emit("Knoten verschieben")
                         self._dragging_node_idx = idx
+                        # Knotenliste für die ganze Ziehbewegung einfrieren, sonst verschieben sich
+                        # die Indizes durch simplify()/buffer(0) bei jedem Mausschritt
+                        self._node_drag_geom = self.selected.world_geom()
+                        self._node_drag_coords = nodes
                         return
 
             if self.tool not in ("select", "edit_nodes"):
@@ -476,6 +500,8 @@ class StitchCanvas(QWidget):
             self.design_modified.emit("Stichwinkel drehen")
         if self._dragging_node_idx is not None:
             self._dragging_node_idx = None
+            self._node_drag_geom = None
+            self._node_drag_coords = None
             self.design_modified.emit("Knoten verschieben")
         if self._dragging_obj:
             self._dragging_obj = False
@@ -483,6 +509,9 @@ class StitchCanvas(QWidget):
                 self.design_modified.emit("Objekt transformieren")
 
     def _get_editable_nodes(self, obj: EmbObject) -> list[tuple[float, float]]:
+        # Nur Objekte mit eigener Vektor-Geometrie (Text/Stiche werden anders erzeugt)
+        if obj.kind not in ("fill", "satin", "run", "column"):
+            return []
         g = obj.world_geom()
         if g is None or g.is_empty:
             return []
@@ -502,31 +531,32 @@ class StitchCanvas(QWidget):
     def _move_editable_node(self, obj: EmbObject, idx: int, new_mm: tuple[float, float]):
         from ..core.design import IDENTITY
         from ..engine.geom import polygons_of, lines_of
-        g = obj.world_geom()
+        g = getattr(self, "_node_drag_geom", None) or obj.world_geom()
+        coords = list(getattr(self, "_node_drag_coords", None) or self._get_editable_nodes(obj))
+        if not (0 <= idx < len(coords)):
+            return
+        coords[idx] = new_mm
         polys = polygons_of(g)
         if polys:
-            simp = polys[0].simplify(0.45, preserve_topology=True)
-            base_poly = simp if (isinstance(simp, Polygon) and not simp.is_empty) else polys[0]
-            coords = list(base_poly.exterior.coords)
-            if 0 <= idx < len(coords):
-                coords[idx] = new_mm
-                if idx == 0 or idx == len(coords) - 1:
-                    coords[0] = coords[-1] = new_mm
-                try:
-                    new_p = Polygon(coords, list(base_poly.interiors)).buffer(0)
-                    if not new_p.is_empty:
-                        obj.geom = new_p
-                        obj.transform = IDENTITY
-                except Exception:
-                    pass
+            if idx == 0 or idx == len(coords) - 1:
+                coords[0] = coords[-1] = new_mm
+            try:
+                new_p = Polygon(coords, list(polys[0].interiors)).buffer(0)
+            except Exception:
+                return
+            if new_p.is_empty:
+                return
+            # Weitere Teilflächen eines MultiPolygons unverändert übernehmen
+            obj.geom = unary_union([new_p] + polys[1:]) if len(polys) > 1 else new_p
+            obj.transform = IDENTITY
             return
         lns = lines_of(g)
         if lns:
-            coords = list(lns[0].coords)
-            if 0 <= idx < len(coords):
-                coords[idx] = new_mm
-                obj.geom = LineString(coords)
-                obj.transform = IDENTITY
+            if obj.kind == "column":
+                obj.width *= m_scale(obj.transform)  # Skalierung in die Breite übernehmen
+            rest = lns[1:]
+            obj.geom = MultiLineString([LineString(coords)] + rest) if rest else LineString(coords)
+            obj.transform = IDENTITY
 
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key_Return, Qt.Key_Enter) and self._draw_pts:
@@ -566,7 +596,7 @@ class StitchCanvas(QWidget):
             poly = Polygon(pts).buffer(0)
             if not poly.is_empty and poly.area >= 1.0:
                 self.about_to_modify.emit("Fläche zeichnen")
-                obj = FillObject(self.active_thread, name="Freihand-Fläche", geom=poly)
+                obj = FillObject(self.active_thread, name=tr("kind_fill"), geom=poly)
                 self.design.objects.append(obj)
                 self.selected = obj
                 self.selection_changed.emit(obj)
@@ -575,7 +605,8 @@ class StitchCanvas(QWidget):
             line = LineString(pts)
             if line.length >= 1.0:
                 self.about_to_modify.emit("Satin zeichnen")
-                obj = SatinObject(self.active_thread, name="Freihand-Satin", geom=line.buffer(1.6, cap_style=2))
+                # Gezeichnete Linie = Säulen-Mittellinie; Stiche stehen senkrecht dazu
+                obj = ColumnObject(self.active_thread, name=tr("kind_column"), geom=line, width=3.2)
                 self.design.objects.append(obj)
                 self.selected = obj
                 self.selection_changed.emit(obj)
@@ -584,7 +615,7 @@ class StitchCanvas(QWidget):
             line = LineString(pts)
             if line.length >= 1.0:
                 self.about_to_modify.emit("Steppstich zeichnen")
-                obj = RunObject(self.active_thread, name="Steppstich-Pfad", geom=line, repeats=1)
+                obj = RunObject(self.active_thread, name=tr("kind_run"), geom=line, repeats=1)
                 self.design.objects.append(obj)
                 self.selected = obj
                 self.selection_changed.emit(obj)

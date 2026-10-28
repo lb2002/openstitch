@@ -45,7 +45,11 @@
 * **3D puff foam mode (caps):** dense satin (0.24 mm) with perforating pinch end-caps for 2–3 mm foam.
 * **1-click appliqué:** placement line (with stop), tack-down and satin cover border.
 * **PhotoStitch:** portrait/landscape photos → monochrome, sepia or 4-colour CMYK wave embroidery.
-* **SVG import & TTF/OTF lettering** (arc text, automatic satin/tatami choice).
+* **Satin columns along your drawn centre line** (`S`): stitches stay perpendicular to the line, with adjustable width, short stitches on tight curves, corner handling and automatic underlay (centre walk / edge walk / zigzag, chosen by column width).
+* **OpenStitch Micro: small lettering from 2.5 mm.** A built-in single-stroke embroidery font, stitched like commercial small-text fonts. TrueType outlines fill in below ~4.5 mm; Micro stays readable:
+
+  ![OpenStitch Micro vs. TrueType at 2.5 and 3 mm](./assets/micro_font_comparison.png)
+* **SVG import** (transforms, arcs, styles, `<use>`, fill rules) & **TTF/OTF lettering** (arc text, automatic satin/tatami choice).
 
 ### 3. 🩺 Density guard, heatmap & quality doctor (`F7`)
 * **Anti-thread-break filter** prevents needle collisions, bird-nesting and fabric holes.
@@ -67,10 +71,10 @@
 ## 🚀 Quickstart & Installation
 
 ### Option A: 1-click download (no Python required)
-Get the ready-made app from the **[GitHub release page (v0.2.0)](https://github.com/lb2002/openstitch/releases/tag/v0.2.0)**:
-* 🪟 **Windows (64-bit, single file):** [`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/download/v0.2.0/OpenStitch-Studio-Windows-x64.exe) *(download & double-click, nothing to unpack)*
-* 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** [`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.2.0/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)
-* 🍎 **macOS (Intel x64):** [`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.2.0/OpenStitch-Studio-macOS-Intel-x64.zip)
+Get the ready-made app from the **[GitHub release page (latest)](https://github.com/lb2002/openstitch/releases/latest)**:
+* 🪟 **Windows (64-bit, single file):** [`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Windows-x64.exe) *(download & double-click, nothing to unpack)*
+* 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** [`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)
+* 🍎 **macOS (Intel x64):** [`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip)
 
 ### Option B: run from source (Windows, macOS & Linux)
 Requires **Python 3.10+**.
