@@ -24,6 +24,7 @@ from shapely.ops import unary_union
 
 from ..core.design import ColumnObject, Design, EmbObject, FillObject, RunObject, SatinObject, compose, m_scale
 from ..core.stitchplan import Cmd, StitchPlan, Thread
+from ..i18n import tr
 from ..render import draw_plan
 
 
@@ -595,7 +596,7 @@ class StitchCanvas(QWidget):
             poly = Polygon(pts).buffer(0)
             if not poly.is_empty and poly.area >= 1.0:
                 self.about_to_modify.emit("Fläche zeichnen")
-                obj = FillObject(self.active_thread, name="Freihand-Fläche", geom=poly)
+                obj = FillObject(self.active_thread, name=tr("kind_fill"), geom=poly)
                 self.design.objects.append(obj)
                 self.selected = obj
                 self.selection_changed.emit(obj)
@@ -605,7 +606,7 @@ class StitchCanvas(QWidget):
             if line.length >= 1.0:
                 self.about_to_modify.emit("Satin zeichnen")
                 # Gezeichnete Linie = Säulen-Mittellinie; Stiche stehen senkrecht dazu
-                obj = ColumnObject(self.active_thread, name="Satinsäule", geom=line, width=3.2)
+                obj = ColumnObject(self.active_thread, name=tr("kind_column"), geom=line, width=3.2)
                 self.design.objects.append(obj)
                 self.selected = obj
                 self.selection_changed.emit(obj)
@@ -614,7 +615,7 @@ class StitchCanvas(QWidget):
             line = LineString(pts)
             if line.length >= 1.0:
                 self.about_to_modify.emit("Steppstich zeichnen")
-                obj = RunObject(self.active_thread, name="Steppstich-Pfad", geom=line, repeats=1)
+                obj = RunObject(self.active_thread, name=tr("kind_run"), geom=line, repeats=1)
                 self.design.objects.append(obj)
                 self.selected = obj
                 self.selection_changed.emit(obj)

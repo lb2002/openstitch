@@ -661,8 +661,9 @@ def run_quality_doctor(design: Design, plan: StitchPlan, max_needles: int = 10) 
     for o in design.objects:
         if not o.visible:
             continue
-        if o.kind == "text" and getattr(o, "height", 10.0) < 4.5:
-            issues.append(tr("doc_small_text").format(name=o.name, h=fmt_float(o.height)))
+        # Die Micro-Schrift ist genau für kleine Höhen digitalisiert → keine Warnung
+        if o.kind == "text" and getattr(o, "height", 10.0) < 4.5 and getattr(o, "font", "") != "builtin:micro":
+            issues.append(tr("doc_small_text").format(name=o.name or getattr(o, "text", ""), h=fmt_float(o.height)))
         if o.kind == "satin" and getattr(o, "spacing", 0.4) < 0.28:
             issues.append(tr("doc_satin_density").format(name=o.name, sp=fmt_float(o.spacing, 2)))
 

@@ -366,3 +366,24 @@ def test_quality_doctor_round_hoop_uses_real_radius():
     d.hoop = HOOPS[2]  # rund 15 cm → Radius 75 mm; Kreis r=64 passt (Bounding-Box-Ecke wäre 90 mm)
     issues = run_quality_doctor(d, d.build_plan(), max_needles=10)
     assert len(issues) == 1 and issues[0].startswith("✅")
+
+
+def test_column_object_stitches_perpendicular_and_round_trips(tmp_path):
+    import math
+    from openstitch.core.design import ColumnObject
+    from openstitch.core.stitchplan import Cmd
+    line = LineString([(-20, 0), (0, 0), (15, 10)])
+    col = ColumnObject(Thread((10, 120, 60), "Grün"), geom=line, width=3.0)
+    d = Design(objects=[col])
+    plan = d.build_plan()
+    assert plan.stitch_count > 100 and _max_stitch_len(plan) <= d.settings.max_stitch + 1e-6
+    # Auf dem geraden Stück (x < -3) stehen die Satinstiche senkrecht zur Linie (also vertikal)
+    pts = [(s.x, s.y) for s in plan.blocks[0].stitches if s.cmd == Cmd.STITCH]
+    vertical = [abs(b[1] - a[1]) / max(1e-9, math.dist(a, b)) for a, b in zip(pts, pts[1:])
+                if -17 < a[0] < -3 and -17 < b[0] < -3 and math.dist(a, b) > 2.5]
+    assert vertical and sum(vertical) / len(vertical) > 0.95
+    assert col.bounds()[3] - col.bounds()[1] > 3.0 * 0.9 + 10  # Breite fliesst in die Bounds ein
+    path = str(tmp_path / "col.ostitch")
+    save_project(d, path)
+    c2 = load_project(path).objects[0]
+    assert c2.kind == "column" and abs(c2.width - 3.0) < 1e-9
