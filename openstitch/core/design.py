@@ -14,7 +14,7 @@ from shapely.ops import unary_union
 from ..engine.fill import fill_runs, join_covered_runs
 from ..engine.geom import Pt, clean, dist, lines_of, main_axis_angle, polygons_of, directional_grow
 from ..engine.running import bean_stitch, running_stitch, tie_stitches
-from ..engine.satin import satin_runs
+from ..engine.satin import UNDERLAY_STYLES, satin_runs
 from .stitchplan import Cmd, ColorBlock, Stitch, StitchPlan, Thread
 
 IDENTITY = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
@@ -186,12 +186,14 @@ class SatinObject(EmbObject):
     max_stitch: float = 7.0
     underlay: bool = True
     puff_3d: bool = False
+    underlay_style: str = "auto"
     kind: str = "satin"
 
     PARAMS = (("spacing", "Dichte (mm)", float, 0.2, 1.2, 0.05),
               ("pull_comp", "Zugkompensation (mm)", float, 0.0, 0.8, 0.05),
               ("max_stitch", "Max. Stich / Split (mm)", float, 4.0, 12.0, 0.5),
               ("underlay", "Unterlage", bool, 0, 0, 0),
+              ("underlay_style", "Unterlage-Art", UNDERLAY_STYLES, 0, 0, 0),
               ("puff_3d", "3D-Puff (Cap-Modus)", bool, 0, 0, 0))
 
     def local_geom(self):
@@ -204,7 +206,8 @@ class SatinObject(EmbObject):
         eff_spacing = min(self.spacing, 0.25) if self.puff_3d else self.spacing
         eff_pc = max(self.pull_comp, 0.32) if self.puff_3d else self.pull_comp
         res = satin_runs(
-            g, eff_spacing, eff_pc, self.max_stitch, self.underlay, start, puff_3d=self.puff_3d
+            g, eff_spacing, eff_pc, self.max_stitch, self.underlay, start, puff_3d=self.puff_3d,
+            underlay_style=self.underlay_style,
         )
         out = []
         if not self.puff_3d and res.leftover is not None and not res.leftover.is_empty:

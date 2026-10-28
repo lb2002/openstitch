@@ -311,3 +311,25 @@ def test_density_guard_keeps_fill_turn_points():
     # echte Mikrostiche auf gerader Strecke werden weiterhin entfernt
     line = [Stitch(0, 0, Cmd.JUMP), Stitch(1, 0), Stitch(1.1, 0), Stitch(2, 0), Stitch(3, 0)]
     assert len(optimize_stitches_for_melco(line)) == 4
+
+
+def test_satin_underlay_styles():
+    from openstitch.engine.satin import auto_underlay_style
+    assert auto_underlay_style(1.5) == "mitte"
+    assert auto_underlay_style(3.5) == "kante"
+    assert auto_underlay_style(6.0) == "kante+zickzack"
+    t = Thread((20, 40, 200), "Blau")
+    counts = {}
+    for style in ("mitte", "kante", "zickzack", "kante+zickzack"):
+        o = SatinObject(t, geom=LineString([(-20, 0), (20, 0)]).buffer(3.0), underlay_style=style)
+        d = Design(objects=[o])
+        plan = d.build_plan()
+        counts[style] = plan.stitch_count
+        assert plan.trim_count == 1 and _max_stitch_len(plan) <= d.settings.max_stitch
+    # Kantenlauf läuft hin und zurück → mehr Stiche als nur die Mitte
+    assert counts["kante"] > counts["mitte"] and counts["kante+zickzack"] > counts["kante"]
+    # alte Projekte ohne underlay_style laden weiter (Default "auto")
+    from openstitch.core.design import object_from_dict
+    dct = SatinObject(t, geom=Point(0, 0).buffer(2)).to_dict()
+    dct.pop("underlay_style")
+    assert object_from_dict(dct).underlay_style == "auto"
