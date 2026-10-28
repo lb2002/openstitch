@@ -45,7 +45,11 @@
 * **3D puff foam mode (caps):** dense satin (0.24 mm) with perforating pinch end-caps for 2–3 mm foam.
 * **1-click appliqué:** placement line (with stop), tack-down and satin cover border.
 * **PhotoStitch:** portrait/landscape photos → monochrome, sepia or 4-colour CMYK wave embroidery.
-* **SVG import & TTF/OTF lettering** (arc text, automatic satin/tatami choice).
+* **Satin columns along your drawn centre line** (`S`): stitches stay perpendicular to the line, with adjustable width, short stitches on tight curves, corner handling and automatic underlay (centre walk / edge walk / zigzag, chosen by column width).
+* **OpenStitch Micro: small lettering from 2.5 mm.** A built-in single-stroke embroidery font, stitched like commercial small-text fonts. TrueType outlines fill in below ~4.5 mm; Micro stays readable:
+
+  ![OpenStitch Micro vs. TrueType at 2.5 and 3 mm](./assets/micro_font_comparison.png)
+* **SVG import** (transforms, arcs, styles, `<use>`, fill rules) & **TTF/OTF lettering** (arc text, automatic satin/tatami choice).
 
 ### 3. 🩺 Density guard, heatmap & quality doctor (`F7`)
 * **Anti-thread-break filter** prevents needle collisions, bird-nesting and fabric holes.

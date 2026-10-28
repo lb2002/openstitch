@@ -20,7 +20,7 @@
 ## ✨ Características
 
 * 🪄 **Auto-Digitalizador (imagen / logotipo → archivo de bordado):** reducción de color en CIE-Lab, correspondencia con catálogos reales (**Madeira Polyneon 40, Isacord 40, Gunold Poly 40, Brother**), eliminación automática del fondo, detección del tipo de puntada (pespunte triple, **satén automático**, **tatami** / relleno de contorno), compensación de tirantez, entretela y solape de 0,7 mm entre colores.
-* 🎨 **Digitalización manual:** herramientas Tatami (`F`), Satén (`S`), Pespunte (`R`), editor de nodos (`N`), inspector paramétrico en vivo, texto TTF/OTF con arco, importación SVG y arrastrar y soltar.
+* 🎨 **Digitalización manual:** herramientas Tatami (`F`), Satén (`S`), Pespunte (`R`), editor de nodos (`N`), inspector paramétrico en vivo, columnas de satén a lo largo de la línea central dibujada, fuente de bordado **OpenStitch Micro** legible desde 2,5 mm, texto TTF/OTF con arco, importación SVG y arrastrar y soltar.
 * 🧵 **Herramientas pro:** modo espuma 3D (gorras), **aplique en 1 clic**, **PhotoStitch** (foto → bordado monocromo, sepia o CMYK).
 * 🩺 **Control de calidad:** filtro anti-rotura de hilo, mapa de densidad en vivo, **doctor de calidad (`F7`)** y **verificación binaria** de cada archivo exportado.
 * 🏭 **Neutral respecto a fabricantes:** DST, PES, EXP, JEF, VP3, U01; perfiles para Tajima, Brother, Barudan, Ricoma/ZSK, Janome/Bernina, Pfaff/Husqvarna y Melco (gestor de disquete FAT12 `.IMG` incluido).

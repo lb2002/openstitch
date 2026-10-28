@@ -20,7 +20,7 @@
 ## ✨ Fonctionnalités
 
 * 🪄 **Auto-Numériseur (image / logo → fichier de broderie) :** réduction des couleurs en CIE-Lab, correspondance avec de vrais nuanciers (**Madeira Polyneon 40, Isacord 40, Gunold Poly 40, Brother**), suppression automatique du fond, détection du type de point (point droit triple, **satin automatique**, **tatami** / remplissage de contour), compensation de tirage, sous-couche et recouvrement de 0,7 mm entre couleurs.
-* 🎨 **Numérisation manuelle :** outils Tatami (`F`), Satin (`S`), Point droit (`R`), éditeur de nœuds (`N`), inspecteur paramétrique en direct, lettrage TTF/OTF avec texte en arc, import SVG, glisser-déposer.
+* 🎨 **Numérisation manuelle :** outils Tatami (`F`), Satin (`S`), Point droit (`R`), éditeur de nœuds (`N`), inspecteur paramétrique en direct, colonnes satin le long de la ligne centrale dessinée, police de broderie **OpenStitch Micro** lisible dès 2,5 mm, lettrage TTF/OTF avec texte en arc, import SVG, glisser-déposer.
 * 🧵 **Outils pro :** mode mousse 3D (casquettes), **appliqué en 1 clic**, **PhotoStitch** (photo → broderie monochrome, sépia ou CMJN).
 * 🩺 **Contrôle qualité :** filtre anti-casse de fil, carte de densité en direct, **docteur qualité (`F7`)** et **vérification binaire** de chaque fichier exporté.
 * 🏭 **Neutre vis-à-vis des fabricants :** DST, PES, EXP, JEF, VP3, U01 ; profils pour Tajima, Brother, Barudan, Ricoma/ZSK, Janome/Bernina, Pfaff/Husqvarna et Melco (gestionnaire de disquette FAT12 `.IMG` inclus).

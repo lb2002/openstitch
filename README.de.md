@@ -45,7 +45,11 @@
 * **3D-Puff-Schaumstoff-Modus (für Caps):** Erzeugt hochdichte Satin-Säulen (0.24 mm) mit speziell perforierenden **Pinch-End-Caps** zum sauberen Durchtrennen von 2–3 mm 3D-Stick-Schaumstoff.
 * **1-Klick Applikation (Appliqué):** Erzeugt automatisch Platzierungslinie (mit Maschinen-Stopp), Stoff-Fixiernaht (Tack-Down) und breite Satin-Deckkante.
 * **PhotoStitch:** Verwandelt Porträt- und Landschaftsfotos in Monochrom-, Sepia- oder 4-Farb-CMYK-Wellenstickerei.
-* **SVG-Vektor-Import & TTF/OTF-Schrift-Generator** (inkl. Bogentext & automatischer Satin/Tatami-Wahl).
+* **Satinsäulen entlang der gezeichneten Mittellinie** (`S`): Stiche stehen senkrecht zur Linie, mit einstellbarer Breite, Kurzstich in engen Kurven, Eckenbehandlung und automatischer Unterlage (Mittellauf / Kantenlauf / Zickzack je nach Säulenbreite).
+* **OpenStitch Micro – kleine Schrift ab 2.5 mm:** Eingebaute Einlinien-Stickschrift, gestickt wie die Kleinschriften kommerzieller Programme. TrueType-Umrisse laufen unter ~4.5 mm zu, Micro bleibt lesbar:
+
+  ![OpenStitch Micro vs. TrueType bei 2.5 und 3 mm](./assets/micro_font_comparison.png)
+* **SVG-Vektor-Import** (Transformationen, Bögen, Stile, `<use>`, Füllregeln) & **TTF/OTF-Schrift-Generator** (inkl. Bogentext & automatischer Satin/Tatami-Wahl).
 
 ### 3. 🩺 Stichdichte-Wächter, Heatmap & Qualitäts-Doktor (`F7`)
 * **Automatischer Anti-Fadenbruch-Filter (`density_guard`):** Verhindert Nadelkollisionen, Fadennester („Birdnesting“) und Stofflöcher.
