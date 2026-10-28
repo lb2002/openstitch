@@ -343,13 +343,20 @@ class Hoop:
 
     @property
     def strategy_description(self) -> str:
-        return {
-            "small": "Straffe Spannung · feine Details (-10% Zugkompensation, Standard-Unterlage)",
-            "medium": "Ausgewogen · Standard-Brust-/Ärmelrahmen (100% Zugkompensation)",
-            "large": "Anti-Trampolin · verstärkte Unterlage (+20% Zugkompensation + Kreuz-Gitter bei grossen Flächen)",
-            "jacket": "Jackenrücken-Stabilisierung (+35% Zugkompensation, Doppel-Gitter-Unterlage, max. 750 SPM)",
-            "cap": "Kappen-Modus (Center-Out & Bottom-Up vom Schirm nach oben, +30% Zugkompensation)",
-        }.get(self.mode, "Standard")
+        """Beschreibung der Rahmen-Strategie in der aktuellen UI-Sprache."""
+        from ..i18n import tr  # spät importieren: vermeidet Import-Zyklen
+        if self.mode in ("small", "medium", "large", "jacket", "cap"):
+            return tr(f"hoop_strat_{self.mode}")
+        return tr("hoop_strat_default")
+
+    @property
+    def display_name(self) -> str:
+        """Übersetzter Anzeigename. `name` selbst bleibt unverändert (Projektdateien & Abgleich)."""
+        key = HOOP_NAME_KEYS.get(self.name)
+        if key is None:
+            return self.name
+        from ..i18n import tr
+        return tr(key)
 
 
 HOOPS = [
@@ -364,6 +371,20 @@ HOOPS = [
     Hoop("Jackenrücken 30 × 30 cm", 300, 300, False, "jacket", 6.0),
     Hoop("Grossfeld 40 × 30 cm (Industrie)", 400, 300, False, "jacket", 6.0),
 ]
+
+# Übersetzungsschlüssel für die Anzeige der Rahmennamen (Hoop.name ist der gespeicherte Schlüssel)
+HOOP_NAME_KEYS: dict[str, str] = {
+    "Rund 9 cm (Klein/Brust)": "hoop_round9",
+    "Rund 12 cm (Brustlogo)": "hoop_round12",
+    "Rund 15 cm (Standard)": "hoop_round15",
+    "Rund 18 cm (Gross)": "hoop_round18",
+    "Rund 21 cm (XL)": "hoop_round21",
+    "Kappe / Cap 13 × 5 cm": "hoop_cap",
+    "Wide-Cap 30 × 7 cm": "hoop_widecap",
+    "Rechteck 13 × 18 cm (Haushalt)": "hoop_rect13x18",
+    "Jackenrücken 30 × 30 cm": "hoop_jacket",
+    "Grossfeld 40 × 30 cm (Industrie)": "hoop_field40x30",
+}
 
 
 @dataclass

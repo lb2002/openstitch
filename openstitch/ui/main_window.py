@@ -38,7 +38,9 @@ from shapely.geometry import LineString, Point
 
 from .. import APP_NAME, __version__
 from ..auto.palette import CATALOG_PALETTES, active_palette, nearest_thread, set_active_palette
-from ..i18n import LANGUAGES, current_lang, init_lang, key_for, set_lang, tr
+from ..i18n import (
+    LANGUAGES, current_lang, fmt_int, init_lang, key_for, machine_display_name, set_lang, tr, tr_opt,
+)
 from ..core.design import HOOPS, Design, EmbObject, FillObject, Hoop, RunObject, SatinObject
 from ..core.machines import MACHINE_PROFILES, MachineProfile
 from ..core.stitchplan import Thread
@@ -221,7 +223,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         init_lang()
         self._tr_bindings: list[tuple] = []
-        self.setWindowTitle(f"{APP_NAME} Studio {__version__}  —  Universal Open-Source Embroidery & Digitizing Suite")
+        self._bind(self.setWindowTitle, "app_tagline", fmt=lambda s: f"{APP_NAME} Studio {__version__}  —  {s}")
         self.resize(1540, 920)
         self.setStyleSheet(STUDIO_STYLE)
         self.setAcceptDrops(True)
@@ -255,7 +257,7 @@ class MainWindow(QMainWindow):
         self.cmb_machine = QComboBox()
         self.cmb_machine.setMinimumWidth(225)
         for mp in MACHINE_PROFILES:
-            self.cmb_machine.addItem(mp.name, mp)
+            self.cmb_machine.addItem(machine_display_name(mp.name), mp)
         self.cmb_machine.currentIndexChanged.connect(self._on_machine_changed)
         ctx_hb.addWidget(self.cmb_machine)
 
@@ -267,7 +269,7 @@ class MainWindow(QMainWindow):
         self.cmb_hoop = QComboBox()
         self.cmb_hoop.setMinimumWidth(200)
         for h in HOOPS:
-            self.cmb_hoop.addItem(f"{h.name} ({h.width:.0f}×{h.height:.0f} mm)", h)
+            self.cmb_hoop.addItem(self._hoop_label(h), h)
         self.cmb_hoop.setCurrentIndex(2)  # Rund 15 cm Standard
         self.cmb_hoop.currentIndexChanged.connect(self._on_hoop_changed)
         ctx_hb.addWidget(self.cmb_hoop)
@@ -277,13 +279,13 @@ class MainWindow(QMainWindow):
         btn_fit.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         btn_fit.setText("Auto-Fit")
         self._bind(btn_fit.setText, "btn_autofit")
-        btn_fit.setToolTip("Design optimal in den gewählten Rahmen einpassen (Ctrl+F)")
+        self._bind(btn_fit.setToolTip, "tip_autofit")
         btn_fit.clicked.connect(self.action_fit_to_hoop)
         ctx_hb.addWidget(btn_fit)
 
         self.btn_fabric = QToolButton()
-        self.btn_fabric.setText("Stoff: Dunkel")
-        self.btn_fabric.setToolTip("Stoffhintergrund im Stickrahmen umschalten (Dunkel-Schiefer / Warm-Sand / Hell)")
+        self.btn_fabric.setText(tr("fabric_slate"))
+        self._bind(self.btn_fabric.setToolTip, "tip_fabric")
         self.btn_fabric.clicked.connect(self.cycle_fabric_theme)
         ctx_hb.addWidget(self.btn_fabric)
 
@@ -300,7 +302,7 @@ class MainWindow(QMainWindow):
         self.cmb_lang.currentIndexChanged.connect(self._on_language_changed)
         ctx_hb.addWidget(self.cmb_lang)
         ctx_hb.addSpacing(6)
-        self.lbl_hoop_strategy = QLabel("Strategie: Ausgewogen · 100% Zugkompensation")
+        self.lbl_hoop_strategy = QLabel()  # Text setzt retranslate_ui()
         self.lbl_hoop_strategy.setStyleSheet(
             "color: #81c995; background-color: rgba(129, 201, 149, 0.12); "
             "border: 1px solid rgba(129, 201, 149, 0.28); border-radius: 5px; padding: 3px 8px; font-size: 8.5pt;"
@@ -356,18 +358,34 @@ class MainWindow(QMainWindow):
             txt = fmt(txt)
         setter(txt)
 
+    def _update_strategy_label(self):
+        if hasattr(self, "lbl_hoop_strategy"):
+            self.lbl_hoop_strategy.setText(
+                f"{tr('lbl_strategy')}{tr('label_colon')} {self.canvas.design.hoop.strategy_description}"
+            )
+
+    @staticmethod
+    def _hoop_label(h: Hoop) -> str:
+        return f"{h.display_name} ({h.width:.0f}×{h.height:.0f} mm)"
+
     def retranslate_ui(self):
         for setter, key, escape, fmt in self._tr_bindings:
             self._apply_binding(setter, key, escape, fmt)
+        for i in range(self.cmb_hoop.count()):
+            self.cmb_hoop.setItemText(i, self._hoop_label(self.cmb_hoop.itemData(i)))
+        for i in range(self.cmb_machine.count()):
+            self.cmb_machine.setItemText(i, machine_display_name(self.cmb_machine.itemData(i).name))
+        self._refresh_object_list()
+        total = self.canvas.plan.stitch_count
+        if total:  # Zahlenformat des Simulator-Zählers an die Sprache anpassen
+            cur = total if self.canvas.sim_limit is None else self.canvas.sim_limit
+            self.lbl_sim.setText(f"{fmt_int(cur)} / {fmt_int(total)}")
         lbl = {"slate": "fabric_slate", "sand": "fabric_sand", "light": "fabric_light"}
         self.btn_fabric.setText(tr(lbl.get(self.canvas.fabric_theme, "fabric_slate")))
         self._refresh_stats()
         self._refresh_needle_list()
         self._populate_properties(self.canvas.selected)
-        if hasattr(self, "lbl_hoop_strategy"):
-            self.lbl_hoop_strategy.setText(
-                f"{tr('lbl_strategy')}: {self.canvas.design.hoop.strategy_description}"
-            )
+        self._update_strategy_label()
         self.btn_play.setText(tr("btn_pause") if self.btn_play.isChecked() else tr("btn_play"))
         self.canvas.update()
 
@@ -432,7 +450,8 @@ class MainWindow(QMainWindow):
                        (m_create, "menu_create"), (m_machine, "menu_machine"), (m_help, "menu_help")):
             self._bind(_m.setTitle, _k, fmt=lambda s: s.replace("&&", "&&"))
 
-        tb = QToolBar("Studio-Leiste", self)
+        tb = QToolBar(tr("tb_title_studio"), self)
+        self._bind(tb.setWindowTitle, "tb_title_studio")
         self.top_toolbar = tb
         tb.setMovable(False)
         tb.setIconSize(QSize(16, 16))
@@ -520,7 +539,8 @@ class MainWindow(QMainWindow):
 
     # ================================= 2. Linke Vertikal-Werkzeugleiste (Tool-Rail)
     def _build_left_tool_rail(self):
-        rail = QToolBar("Zeichenwerkzeuge", self)
+        rail = QToolBar(tr("tb_title_tools"), self)
+        self._bind(rail.setWindowTitle, "tb_title_tools")
         self.left_rail = rail
         rail.setMovable(False)
         rail.setOrientation(Qt.Vertical)
@@ -528,12 +548,10 @@ class MainWindow(QMainWindow):
         rail.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.addToolBar(Qt.LeftToolBarArea, rail)
 
-        def rail_btn(label: str, icon_kind: str, tip: str, slot, checkable: bool = True) -> QAction:
-            a = QAction(studio_icon(icon_kind, 17), label, self)
-            _k = key_for(label)
-            if _k:
-                self._bind(a.setText, _k, escape=True)
-            a.setToolTip(tip)
+        def rail_btn(key: str, icon_kind: str, tip_key: str, slot, checkable: bool = True) -> QAction:
+            a = QAction(studio_icon(icon_kind, 17), tr(key), self)
+            self._bind(a.setText, key, escape=True)
+            self._bind(a.setToolTip, tip_key)
             a.setCheckable(checkable)
             a.triggered.connect(slot)
             rail.addAction(a)
@@ -542,15 +560,15 @@ class MainWindow(QMainWindow):
                 w_btn.setMinimumWidth(116)
             return a
 
-        self.act_tool_select = rail_btn("Auswahl (V)", "select", "Objekte auswählen, verschieben & skalieren (Taste V)", lambda: self._set_tool("select"))
-        self.act_tool_nodes = rail_btn("Knoten (N)", "nodes", "Konturknoten & Stichwinkel-Achse direkt ziehen (Taste N)", lambda: self._set_tool("edit_nodes"))
+        self.act_tool_select = rail_btn("tool_select", "select", "tip_tool_select", lambda: self._set_tool("select"))
+        self.act_tool_nodes = rail_btn("tool_nodes", "nodes", "tip_tool_nodes", lambda: self._set_tool("edit_nodes"))
         rail.addSeparator()
-        self.act_tool_fill = rail_btn("Tatami (F)", "fill", "Neue Tatami-Füllfläche auf der Leinwand zeichnen (Taste F)", lambda: self._set_tool("draw_fill"))
-        self.act_tool_satin = rail_btn("Satin (S)", "satin", "Neue Satin-Säule auf der Leinwand zeichnen (Taste S)", lambda: self._set_tool("draw_satin"))
-        self.act_tool_run = rail_btn("Stepp (R)", "run", "Neuen Steppstich-Pfad zeichnen (Taste R)", lambda: self._set_tool("draw_run"))
+        self.act_tool_fill = rail_btn("tool_fill", "fill", "tip_tool_fill", lambda: self._set_tool("draw_fill"))
+        self.act_tool_satin = rail_btn("tool_satin", "satin", "tip_tool_satin", lambda: self._set_tool("draw_satin"))
+        self.act_tool_run = rail_btn("tool_run", "run", "tip_tool_run", lambda: self._set_tool("draw_run"))
         rail.addSeparator()
-        self.act_rail_heatmap = rail_btn("Heatmap", "heatmap", "Stichdichte-Heatmap (Grün/Gelb/Rot) ein-/ausblenden (Ctrl+H)", self._toggle_heatmap_from_rail)
-        rail_btn("Zoom 100%", "zoom", "Auf Rahmengrösse zoomen (Ctrl+0)", self.canvas.zoom_to_fit, checkable=False)
+        self.act_rail_heatmap = rail_btn("tool_heatmap", "heatmap", "tip_tool_heatmap", self._toggle_heatmap_from_rail)
+        rail_btn("tool_zoom", "zoom", "tip_tool_zoom", self.canvas.zoom_to_fit, checkable=False)
         self.act_tool_select.setChecked(True)
 
     def _toggle_heatmap_from_rail(self, checked: bool):
@@ -650,10 +668,10 @@ class MainWindow(QMainWindow):
 
         hb = QHBoxLayout()
         btn_up = QPushButton("▲")
-        btn_up.setToolTip("Objekt in der Stickreihenfolge nach oben")
+        self._bind(btn_up.setToolTip, "tip_obj_up")
         btn_up.clicked.connect(lambda: self._move_selected_object(-1))
         btn_dn = QPushButton("▼")
-        btn_dn.setToolTip("Objekt in der Stickreihenfolge nach unten")
+        self._bind(btn_dn.setToolTip, "tip_obj_down")
         btn_dn.clicked.connect(lambda: self._move_selected_object(1))
         btn_vis = QPushButton("👁 Sichtbar")
         self._bind(btn_vis.setText, "btn_visible")
@@ -662,7 +680,7 @@ class MainWindow(QMainWindow):
         self._bind(btn_dup.setText, "btn_copy")
         btn_dup.clicked.connect(self.action_duplicate_selected)
         btn_del = QPushButton("🗑")
-        btn_del.setToolTip("Ausgewähltes Objekt löschen (Entf)")
+        self._bind(btn_del.setToolTip, "tip_obj_delete")
         btn_del.clicked.connect(self.action_delete_selected)
         for b in (btn_up, btn_dn, btn_vis, btn_dup, btn_del):
             hb.addWidget(b)
@@ -719,7 +737,7 @@ class MainWindow(QMainWindow):
         self.slider_sim.valueChanged.connect(self._on_sim_slider)
         hb.addWidget(self.slider_sim, 1)
 
-        self.lbl_sim = QLabel("Alle")
+        self.lbl_sim = QLabel(tr("sim_all"))
         self.lbl_sim.setMinimumWidth(115)
         hb.addWidget(self.lbl_sim)
 
@@ -729,7 +747,7 @@ class MainWindow(QMainWindow):
         self.sp_sim_speed = QSpinBox()
         self.sp_sim_speed.setRange(5, 500)
         self.sp_sim_speed.setValue(45)
-        self.sp_sim_speed.setSuffix(" St./Tick")
+        self._bind(self.sp_sim_speed.setSuffix, "sim_speed_suffix")
         hb.addWidget(self.sp_sim_speed)
 
         dock.setWidget(w)
@@ -791,8 +809,7 @@ class MainWindow(QMainWindow):
                 self.cmb_hoop.blockSignals(True)
                 self.cmb_hoop.setCurrentIndex(idx)
                 self.cmb_hoop.blockSignals(False)
-            if hasattr(self, "lbl_hoop_strategy"):
-                self.lbl_hoop_strategy.setText(f"{tr('lbl_strategy')}: {d.hoop.strategy_description}")
+            self._update_strategy_label()
         if hasattr(self, "cmb_machine"):
             idx = next((i for i in range(self.cmb_machine.count())
                         if self.cmb_machine.itemData(i).name == d.settings.machine_name), -1)
@@ -847,7 +864,7 @@ class MainWindow(QMainWindow):
         self.slider_sim.setRange(0, n)
         if self.canvas.sim_limit is None:
             self.slider_sim.setValue(n)
-            self.lbl_sim.setText(f"{n:,} / {n:,}".replace(",", "'"))
+            self.lbl_sim.setText(f"{fmt_int(n)} / {fmt_int(n)}")
         self.slider_sim.blockSignals(False)
 
         self._refresh_needle_list()
@@ -861,24 +878,23 @@ class MainWindow(QMainWindow):
         w, h = x1 - x0, y1 - y0
         kin = analyze_kinematics(p, self.canvas.design.settings.machine_spm)
         self.lbl_stats.setText(
-            f"{tr('stats_stitches')}: {p.stitch_count:,}   ·   "
-            f"{tr('stats_size')}: {w:.1f} × {h:.1f} mm   ·   "
-            f"{tr('stats_avg')}: {kin['avg_len']:.1f} mm   ·   "
-            f"{tr('stats_spm')}: ~{kin['eff_spm']} SPM   ·   "
-            f"{tr('stats_peak')}: {kin['max_per_mm2']}/mm²   ·   "
-            f"{tr('stats_colors')}: {p.color_changes}   ·   "
-            f"Trims: {p.trim_count}   ·   "
-            f"{tr('stats_runtime')} {kin['real_minutes']:.1f} {tr('stats_min')}".replace(",", "'")
+            f"{tr('stats_stitches')}{tr('label_colon')} {fmt_int(p.stitch_count)}   ·   "
+            f"{tr('stats_size')}{tr('label_colon')} {w:.1f} × {h:.1f} mm   ·   "
+            f"{tr('stats_avg')}{tr('label_colon')} {kin['avg_len']:.1f} mm   ·   "
+            f"{tr('stats_spm')}{tr('label_colon')} ~{kin['eff_spm']} SPM   ·   "
+            f"{tr('stats_peak')}{tr('label_colon')} {kin['max_per_mm2']}/mm²   ·   "
+            f"{tr('stats_colors')}{tr('label_colon')} {p.color_changes}   ·   "
+            f"{tr('stats_trims')}{tr('label_colon')} {p.trim_count}   ·   "
+            f"{tr('stats_runtime')} {kin['real_minutes']:.1f} {tr('stats_min')}"
         )
 
     def _refresh_object_list(self):
         self.list_objects.blockSignals(True)
         self.list_objects.clear()
-        kind_label = {"fill": "Tatami", "satin": "Satin", "run": "Stepp", "text": "Schrift", "stitches": "Stiche"}
         sel_row = -1
         for i, o in enumerate(self.canvas.design.objects):
-            vis = "" if o.visible else "[Aus] "
-            kl = kind_label.get(o.kind, o.kind)
+            vis = "" if o.visible else f"{tr('obj_hidden')} "
+            kl = tr_opt(f"kind_{o.kind}", o.kind)
             it = QListWidgetItem(_color_icon(o.thread.color), f"{i + 1}. {vis}{kl} · {o.name or o.thread.name}")
             self.list_objects.addItem(it)
             if o is self.canvas.selected:
@@ -900,7 +916,8 @@ class MainWindow(QMainWindow):
             cnt = sum(1 for s in b.stitches if s.cmd == 0)
             it = QListWidgetItem(
                 _color_icon(b.thread.color),
-                f"#{bi + 1} ({tr('needle')} {nd}): {b.thread.name or b.thread.hex} · {cnt} St.{warn}",
+                f"#{bi + 1} ({tr('needle')} {nd}): {b.thread.name or b.thread.hex} · "
+                f"{fmt_int(cnt)} {tr('abbr_stitches')}{warn}",
             )
             self.list_needles.addItem(it)
 
@@ -921,22 +938,26 @@ class MainWindow(QMainWindow):
         ed_name = QLineEdit(obj.name)
         ed_name.setCursorPosition(0)
         ed_name.editingFinished.connect(lambda: self._set_obj_attr(obj, "name", ed_name.text()))
-        self.prop_layout.addRow(tr("lbl_obj_name") + ":", ed_name)
+        colon = tr("label_colon")  # fr: geschütztes Leerzeichen vor dem Doppelpunkt
+        self.prop_layout.addRow(tr("lbl_obj_name") + colon, ed_name)
 
+        kind = getattr(obj, "kind", "")
         for attr, label, typ, vmin, vmax, step in getattr(obj, "PARAMS", ()):
             val = getattr(obj, attr)
+            # Labels werden erst bei der Anzeige übersetzt (PARAMS enthält das deutsche Original)
+            label = tr_opt(f"param_{kind}_{attr}", tr_opt(f"param_{attr}", label))
             if typ is bool:
                 cb = QCheckBox()
                 cb.setChecked(bool(val))
                 cb.toggled.connect(lambda v, a=attr: self._set_obj_attr(obj, a, v))
-                self.prop_layout.addRow(label + ":", cb)
+                self.prop_layout.addRow(label + colon, cb)
             elif typ is int:
                 sp = QSpinBox()
                 sp.setRange(int(vmin), int(vmax))
                 sp.setSingleStep(int(step or 1))
                 sp.setValue(int(val))
                 sp.valueChanged.connect(lambda v, a=attr: self._set_obj_attr(obj, a, int(v)))
-                self.prop_layout.addRow(label + ":", sp)
+                self.prop_layout.addRow(label + colon, sp)
             elif typ is float:
                 sp = QDoubleSpinBox()
                 sp.setDecimals(2)
@@ -944,23 +965,24 @@ class MainWindow(QMainWindow):
                 sp.setSingleStep(float(step or 0.1))
                 sp.setValue(float(val))
                 sp.valueChanged.connect(lambda v, a=attr: self._set_obj_attr(obj, a, float(v)))
-                self.prop_layout.addRow(label + ":", sp)
+                self.prop_layout.addRow(label + colon, sp)
             elif typ is str:
                 ed = QLineEdit(str(val))
                 ed.editingFinished.connect(lambda e=ed, a=attr: self._set_obj_attr(obj, a, e.text()))
-                self.prop_layout.addRow(label + ":", ed)
+                self.prop_layout.addRow(label + colon, ed)
             elif isinstance(typ, list):
                 cmb = QComboBox()
                 for opt in typ:
-                    cmb.addItem(str(opt), opt)
+                    # Datenwert bleibt unverändert (wird gespeichert), nur der Anzeigetext ist übersetzt
+                    cmb.addItem(tr_opt(f"opt_{opt}", str(opt)), opt)
                 if val in typ:
                     cmb.setCurrentIndex(typ.index(val))
                 cmb.currentIndexChanged.connect(lambda _, c=cmb, a=attr: self._set_obj_attr(obj, a, c.currentData()))
-                self.prop_layout.addRow(label + ":", cmb)
+                self.prop_layout.addRow(label + colon, cmb)
             elif typ == "font":
-                btn_font = QPushButton("Schriftart & Bogen anpassen …")
+                btn_font = QPushButton(tr("btn_font_arc"))
                 btn_font.clicked.connect(lambda: self._edit_text_object(obj))
-                self.prop_layout.addRow(label + ":", btn_font)
+                self.prop_layout.addRow(label + colon, btn_font)
 
         self._updating_props = False
 
@@ -1012,12 +1034,11 @@ class MainWindow(QMainWindow):
         self.canvas.design.hoop = self.cmb_hoop.currentData()
         if self.canvas.design.hoop.mode == "cap":
             self._apply_cap_center_out_order()
-        if hasattr(self, "lbl_hoop_strategy"):
-            self.lbl_hoop_strategy.setText(f"{tr('lbl_strategy')}: {self.canvas.design.hoop.strategy_description}")
+        self._update_strategy_label()
         self.rebuild_plan()
         self.canvas.zoom_to_fit()
         self.status.showMessage(
-            f"Rahmen-Strategie aktiv: {self.canvas.design.hoop.strategy_description}", 7000
+            tr("status_hoop_strategy").format(self.canvas.design.hoop.strategy_description), 7000
         )
 
     def _apply_cap_center_out_order(self):
@@ -1086,7 +1107,7 @@ class MainWindow(QMainWindow):
             self.rebuild_plan()
 
     def _pick_custom_color(self):
-        col = QColorDialog.getColor(QColor(*self.canvas.active_thread.color), self, "Garnfarbe wählen")
+        col = QColorDialog.getColor(QColor(*self.canvas.active_thread.color), self, tr("color_dialog_title"))
         if not col.isValid():
             return
         t = nearest_thread((col.red(), col.green(), col.blue()))
@@ -1111,10 +1132,16 @@ class MainWindow(QMainWindow):
         """Fragt nach, bevor ungespeicherte Änderungen verworfen werden. True = weitermachen."""
         if not self._dirty or not self.isVisible():
             return True
-        ans = QMessageBox.question(
-            self, tr("dlg_unsaved_title"), tr("dlg_unsaved_text"),
-            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Save,
+        box = QMessageBox(
+            QMessageBox.Question, tr("dlg_unsaved_title"), tr("dlg_unsaved_text"),
+            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel, self,
         )
+        box.setDefaultButton(QMessageBox.Save)
+        for std, key in ((QMessageBox.Save, "btn_save"), (QMessageBox.Discard, "btn_discard"),
+                         (QMessageBox.Cancel, "btn_cancel")):
+            box.button(std).setText(tr(key))
+        box.exec()
+        ans = box.standardButton(box.clickedButton())
         if ans == QMessageBox.Save:
             return self.action_save_project()
         return ans == QMessageBox.Discard
@@ -1240,7 +1267,7 @@ class MainWindow(QMainWindow):
                 self.set_design(load_project(path), reset_undo=True)
                 self.canvas.zoom_to_fit()
             except Exception as exc:
-                QMessageBox.critical(self, "Fehler beim Öffnen", str(exc))
+                QMessageBox.critical(self, tr("err_open_title"), str(exc))
         elif ext == "svg":
             try:
                 d = import_svg(path, target_width_mm=95.0)
@@ -1248,14 +1275,14 @@ class MainWindow(QMainWindow):
                 self.set_design(d, reset_undo=True)
                 self.canvas.zoom_to_fit()
             except Exception as exc:
-                QMessageBox.critical(self, "SVG-Import-Fehler", str(exc))
+                QMessageBox.critical(self, tr("err_svg_title"), str(exc))
         elif ext in READ_EXT:
             try:
                 d = import_file(path)
                 self.set_design(d, reset_undo=True)
                 self.canvas.zoom_to_fit()
             except Exception as exc:
-                QMessageBox.critical(self, "Import-Fehler", str(exc))
+                QMessageBox.critical(self, tr("err_import_title"), str(exc))
         elif ext in ("png", "jpg", "jpeg", "bmp", "webp", "tif", "tiff", "gif"):
             self._open_auto_digitize_for_path(path)
 
@@ -1263,40 +1290,44 @@ class MainWindow(QMainWindow):
     def action_new(self):
         if not self._confirm_discard():
             return
-        self.set_design(Design(name="Neues_Design"), reset_undo=True)
+        self.set_design(Design(name=tr("default_design_name")), reset_undo=True)
 
     def action_open_project(self):
         if not self._confirm_discard():
             return
-        path = self._ask_open_file("Projekt öffnen", "OpenStitch-Projekt (*.ostitch);;Alle Dateien (*.*)")
+        path = self._ask_open_file(
+            tr("fd_open_project"), f"{tr('filter_project')} (*.ostitch);;{tr('filter_all_files')} (*.*)"
+        )
         if not path:
             return
         try:
             self.set_design(load_project(path), reset_undo=True)
             self.canvas.zoom_to_fit()
         except Exception as exc:
-            QMessageBox.critical(self, "Fehler beim Öffnen", str(exc))
+            QMessageBox.critical(self, tr("err_open_title"), str(exc))
 
     def action_save_project(self):
         path = self._ask_save_file(
-            "Projekt speichern", f"{self.canvas.design.name}.ostitch", "OpenStitch-Projekt (*.ostitch)"
+            tr("fd_save_project"), f"{self.canvas.design.name}.ostitch", f"{tr('filter_project')} (*.ostitch)"
         )
         if not path:
             return False
         try:
             save_project(self.canvas.design, path)
         except Exception as exc:
-            QMessageBox.critical(self, "Speicherfehler", str(exc))
+            QMessageBox.critical(self, tr("err_save_title"), str(exc))
             return False
         self._dirty = False
-        self.status.showMessage(f"Gespeichert: {path}", 5000)
+        self.status.showMessage(tr("status_saved").format(path), 5000)
         return True
 
     def action_import_embroidery(self):
         if not self._confirm_discard():
             return
         exts = " ".join(f"*.{e} *.{e.upper()}" for e in READ_EXT)
-        path = self._ask_open_file("Stickdatei importieren", f"Stickdateien ({exts});;Alle Dateien (*.*)")
+        path = self._ask_open_file(
+            tr("fd_import_emb"), f"{tr('filter_emb')} ({exts});;{tr('filter_all_files')} (*.*)"
+        )
         if not path:
             return
         try:
@@ -1304,12 +1335,14 @@ class MainWindow(QMainWindow):
             self.set_design(d, reset_undo=True)
             self.canvas.zoom_to_fit()
         except Exception as exc:
-            QMessageBox.critical(self, "Import-Fehler", str(exc))
+            QMessageBox.critical(self, tr("err_import_title"), str(exc))
 
     def action_import_svg(self):
         if not self._confirm_discard():
             return
-        path = self._ask_open_file("SVG-Vektorgrafik importieren", "SVG-Vektordatei (*.svg);;Alle Dateien (*.*)")
+        path = self._ask_open_file(
+            tr("fd_import_svg"), f"{tr('filter_svg')} (*.svg);;{tr('filter_all_files')} (*.*)"
+        )
         if not path:
             return
         try:
@@ -1318,14 +1351,12 @@ class MainWindow(QMainWindow):
             self.set_design(d, reset_undo=True)
             self.canvas.zoom_to_fit()
         except Exception as exc:
-            QMessageBox.critical(self, "SVG-Import-Fehler", str(exc))
+            QMessageBox.critical(self, tr("err_svg_title"), str(exc))
 
     def action_make_applique(self):
         obj = self.canvas.selected
         if obj is None or obj.kind not in ("fill", "satin"):
-            QMessageBox.information(
-                self, "Applikation (Appliqué)", "Bitte zuerst eine Fläche auf der Leinwand auswählen."
-            )
+            QMessageBox.information(self, tr("msg_applique_title"), tr("msg_applique_text"))
             return
         app_objs = create_applique_objects(obj)
         if not app_objs:
@@ -1343,7 +1374,7 @@ class MainWindow(QMainWindow):
         )
         QMessageBox.information(
             self,
-            "Qualitäts- & Maschinen-Doktor",
+            tr("msg_doctor_title"),
             "\n\n".join(issues),
         )
 
@@ -1352,7 +1383,7 @@ class MainWindow(QMainWindow):
         ext_default = mp.native_ext.upper() if mp else "EXP"
         filters = ";;".join(f"{FORMAT_NAMES.get(e, e.upper())} (*.{e})" for e in WRITE_EXT)
         path = self._ask_save_file(
-            "Stickdatei exportieren", f"{self.canvas.design.name}.{ext_default}", filters
+            tr("fd_export_emb"), f"{self.canvas.design.name}.{ext_default}", filters
         )
         if not path:
             return
@@ -1364,22 +1395,21 @@ class MainWindow(QMainWindow):
                 rep = verify_exported_file(path, self.canvas.plan)
                 QMessageBox.information(
                     self,
-                    "Export & Binär-Verifikation erfolgreich",
-                    f"✅ Stickdatei gespeichert und im Simulator verifiziert:\n{path}\n\n"
-                    f"• Dateigrösse: {rep['bytes']:,} Bytes\n"
-                    f"• Verifizierte Nähstiche: {rep['stitches']:,}\n"
-                    f"• Abmessung: {rep['width_mm']:.1f} × {rep['height_mm']:.1f} mm\n"
-                    f"• Max. Schrittweite: {rep['max_step_mm']:.1f} mm\n"
-                    f"• Farbwechsel: {rep['color_changes']}   ·   Sprünge: {rep['jumps']}".replace(",", "'"),
+                    tr("msg_export_verified_title"),
+                    tr("msg_export_verified_text").format(
+                        path=path, size=fmt_int(rep["bytes"]), stitches=fmt_int(rep["stitches"]),
+                        w=rep["width_mm"], h=rep["height_mm"], step=rep["max_step_mm"],
+                        colors=rep["color_changes"], jumps=rep["jumps"],
+                    ),
                 )
             else:
-                QMessageBox.information(self, "Export erfolgreich", f"Datei wurde gespeichert:\n{path}")
+                QMessageBox.information(self, tr("msg_export_ok_title"), tr("msg_export_ok_text").format(path))
         except Exception as exc:
-            QMessageBox.critical(self, "Export-Fehler", str(exc))
+            QMessageBox.critical(self, tr("err_export_title"), str(exc))
 
     def action_export_pdf(self):
         path = self._ask_save_file(
-            "Produktionsblatt (PDF) speichern", f"{self.canvas.design.name}_Produktionsblatt.pdf", "PDF (*.pdf)"
+            tr("fd_save_pdf"), f"{self.canvas.design.name}_{tr('pdf_file_suffix')}.pdf", "PDF (*.pdf)"
         )
         if not path:
             return
@@ -1387,28 +1417,28 @@ class MainWindow(QMainWindow):
         try:
             export_worksheet_pdf(self.canvas.design, self.canvas.plan, path)
         except Exception as exc:
-            QMessageBox.critical(self, "PDF-Fehler", str(exc))
+            QMessageBox.critical(self, tr("err_pdf_title"), str(exc))
             return
-        QMessageBox.information(self, "PDF erstellt", f"Produktionsblatt gespeichert:\n{path}")
+        QMessageBox.information(self, tr("msg_pdf_ok_title"), tr("msg_pdf_ok_text").format(path))
 
     def action_export_png(self):
         path = self._ask_save_file(
-            "3D-Stichvorschau speichern", f"{self.canvas.design.name}.png", "PNG-Bild (*.png)"
+            tr("fd_save_png"), f"{self.canvas.design.name}.png", f"{tr('filter_png')} (*.png)"
         )
         if not path:
             return
         self.wait_for_plan()
         if not render_image(self.canvas.plan, px_per_mm=10.0).save(path):
-            QMessageBox.critical(self, "PNG-Fehler", f"Bild konnte nicht gespeichert werden:\n{path}")
+            QMessageBox.critical(self, tr("err_png_title"), tr("err_png_text").format(path))
 
     # ---------------------------------------------- Digitalisier-Assistenten
     def action_auto_digitize(self):
         path = self._ask_open_file(
-            "Bild, Grafik oder Logo wählen (Downloads / Bilder / Desktop)",
-            "Alle Bild- & Vektordateien (*.png *.jpg *.jpeg *.webp *.bmp *.gif *.tif *.tiff *.svg);;"
-            "Rasterbilder (*.png *.jpg *.jpeg *.webp *.bmp *.gif *.tif *.tiff);;"
-            "SVG-Vektorgrafik (*.svg);;"
-            "Alle Dateien (*.*)",
+            tr("fd_pick_image"),
+            f"{tr('filter_all_img_vec')} (*.png *.jpg *.jpeg *.webp *.bmp *.gif *.tif *.tiff *.svg);;"
+            f"{tr('filter_raster')} (*.png *.jpg *.jpeg *.webp *.bmp *.gif *.tif *.tiff);;"
+            f"{tr('filter_svg')} (*.svg);;"
+            f"{tr('filter_all_files')} (*.*)",
         )
         if not path:
             return
@@ -1419,7 +1449,7 @@ class MainWindow(QMainWindow):
                 self.set_design(d, reset_undo=True)
                 self.canvas.zoom_to_fit()
             except Exception as exc:
-                QMessageBox.critical(self, "SVG-Import-Fehler", str(exc))
+                QMessageBox.critical(self, tr("err_svg_title"), str(exc))
             return
         self._open_auto_digitize_for_path(path)
 
@@ -1427,7 +1457,7 @@ class MainWindow(QMainWindow):
         try:
             dlg = AutoDigitizeDialog(path, self)
         except Exception as exc:
-            QMessageBox.critical(self, "Bild-Fehler", str(exc))
+            QMessageBox.critical(self, tr("err_image_title"), str(exc))
             return
         if dlg.exec() == AutoDigitizeDialog.Accepted and dlg.result_data is not None:
             self._snapshot("Auto-Digitalisieren")
@@ -1441,15 +1471,15 @@ class MainWindow(QMainWindow):
 
     def action_photostitch(self):
         path = self._ask_open_file(
-            "Porträt- oder Landschaftsfoto wählen (Downloads / Bilder / Desktop)",
-            "Fotos & Bilder (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff);;Alle Dateien (*.*)",
+            tr("fd_pick_photo"),
+            f"{tr('filter_photos')} (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff);;{tr('filter_all_files')} (*.*)",
         )
         if not path:
             return
         try:
             dlg = PhotoStitchDialog(path, self)
         except Exception as exc:
-            QMessageBox.critical(self, "Bild-Fehler", str(exc))
+            QMessageBox.critical(self, tr("err_image_title"), str(exc))
             return
         if dlg.exec() == PhotoStitchDialog.Accepted and dlg.result_design is not None:
             self._snapshot("PhotoStitch")
@@ -1468,7 +1498,7 @@ class MainWindow(QMainWindow):
             return
         satins = [o for o in self.canvas.design.objects if isinstance(o, SatinObject)]
         if not satins:
-            QMessageBox.information(self, "3D-Puff-Schaumstoff", "Bitte wähle ein Satin-Objekt aus.")
+            QMessageBox.information(self, tr("msg_puff_title"), tr("msg_puff_text"))
             return
         self._snapshot("3D-Puff für alle Satin-Objekte")
         new_state = not satins[0].puff_3d
@@ -1556,9 +1586,16 @@ class MainWindow(QMainWindow):
 
     def action_scale_design(self):
         from PySide6.QtWidgets import QInputDialog
-        pct, ok = QInputDialog.getDouble(
-            self, "Design skalieren (Stiche werden neu berechnet!)", "Skalierungsfaktor (%):", 100.0, 20.0, 400.0, 1
-        )
+        dlg = QInputDialog(self)
+        dlg.setInputMode(QInputDialog.DoubleInput)
+        dlg.setWindowTitle(tr("dlg_scale_title"))
+        dlg.setLabelText(tr("dlg_scale_label"))
+        dlg.setDoubleDecimals(1)
+        dlg.setDoubleRange(20.0, 400.0)
+        dlg.setDoubleValue(100.0)
+        dlg.setCancelButtonText(tr("btn_cancel"))
+        ok = dlg.exec() == QInputDialog.Accepted
+        pct = dlg.doubleValue()
         if not ok or abs(pct - 100.0) < 1e-3:
             return
         self._snapshot("Design skalieren")
@@ -1596,17 +1633,17 @@ class MainWindow(QMainWindow):
         self.slider_sim.blockSignals(True)
         self.slider_sim.setValue(cur)
         self.slider_sim.blockSignals(False)
-        self.lbl_sim.setText(f"{cur:,} / {total:,}".replace(",", "'"))
+        self.lbl_sim.setText(f"{fmt_int(cur)} / {fmt_int(total)}")
         self.canvas.update()  # sim_limit ist Teil des Cache-Schlüssels
 
     def _on_sim_slider(self, val: int):
         total = self.canvas.plan.stitch_count
         if val >= total:
             self.canvas.sim_limit = None
-            self.lbl_sim.setText(f"{total:,} / {total:,}".replace(",", "'"))
+            self.lbl_sim.setText(f"{fmt_int(total)} / {fmt_int(total)}")
         else:
             self.canvas.sim_limit = val
-            self.lbl_sim.setText(f"{val:,} / {total:,}".replace(",", "'"))
+            self.lbl_sim.setText(f"{fmt_int(val)} / {fmt_int(total)}")
         self.canvas.update()  # sim_limit ist Teil des Cache-Schlüssels
 
     def _reset_sim(self):
