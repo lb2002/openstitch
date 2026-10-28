@@ -317,15 +317,16 @@ class StitchCanvas(QWidget):
 
         p.restore()
 
-        # Dezentes HUD-Pill-Badge oben links auf der Leinwand
-        tool_names = {
-            "select": "Auswahl (V)  ·  Ziehen = Verschieben, Eckgriff = Skalieren, Mausrad = Zoom",
-            "edit_nodes": "Knoten & Stichwinkel (N)  ·  Weisse Knoten = Kontur ändern, Gelber Griff = Stichwinkel drehen",
-            "draw_fill": "Tatami-Fläche zeichnen (F)  ·  Klick = Punkt setzen, Doppelklick/Enter = Fertig",
-            "draw_satin": "Satin-Säule zeichnen (S)  ·  Klick = Punkt setzen, Doppelklick/Enter = Fertig",
-            "draw_run": "Steppstich-Pfad zeichnen (R)  ·  Klick = Punkt setzen, Doppelklick/Enter = Fertig",
+        # Dezentes HUD-Pill-Badge oben links auf der Leinwand (mehrsprachig DE / EN / FR / ES)
+        from ..i18n import tr
+        tool_keys = {
+            "select": "hud_select",
+            "edit_nodes": "hud_nodes",
+            "draw_fill": "hud_fill",
+            "draw_satin": "hud_satin",
+            "draw_run": "hud_run",
         }
-        hud_text = tool_names.get(self.tool, "")
+        hud_text = tr(tool_keys.get(self.tool, "hud_select"))
         p.setFont(QFont("Segoe UI", 8.5))
         fm = p.fontMetrics()
         tw = fm.horizontalAdvance(hud_text) + 22

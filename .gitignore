@@ -34,3 +34,8 @@ Thumbs.db
 !assets/*.img
 tmp_*
 test_out*
+
+# PyInstaller build folders
+build_*/
+*.spec
+dist/

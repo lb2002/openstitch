@@ -156,3 +156,28 @@ def test_interactive_gui_usage_and_undo_redo():
     assert len(canvas.design.objects) == initial_count + 1
     win.close()
 
+
+
+def test_language_switch_and_thread_catalogs():
+    from openstitch.auto.palette import CATALOG_PALETTES, nearest_thread, set_active_palette
+    from openstitch.i18n import set_lang, tr
+
+    names = [p.name for p in CATALOG_PALETTES]
+    assert any("Madeira" in n for n in names) and any("Isacord" in n for n in names)
+    assert any("Gunold" in n for n in names) and any("Brother" in n for n in names)
+    for pal in CATALOG_PALETTES:
+        assert len(pal.threads) >= 25
+        set_active_palette(pal)
+        t = nearest_thread((200, 20, 30))
+        assert t.code and t.brand
+
+    win = MainWindow(show_tour_on_init=False)
+    for lang, expected in (("en", "Machine:"), ("fr", "Machine :"), ("es", "Máquina:"), ("de", "Maschine:")):
+        win.cmb_lang.setCurrentIndex(next(i for i in range(win.cmb_lang.count()) if win.cmb_lang.itemData(i) == lang))
+        assert tr("lbl_machine") == expected
+        assert win.btn_play.text() == tr("btn_play")
+    # Katalogwechsel baut das Farbfeld neu auf
+    win.cmb_catalog.setCurrentIndex(1)
+    assert win.swatch_grid.count() >= 25
+    set_lang("de")
+    win.close()

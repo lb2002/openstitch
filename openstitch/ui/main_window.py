@@ -37,7 +37,8 @@ from PySide6.QtWidgets import (
 from shapely.geometry import LineString, Point
 
 from .. import APP_NAME, __version__
-from ..auto.palette import GENERIC, nearest_thread
+from ..auto.palette import CATALOG_PALETTES, active_palette, nearest_thread, set_active_palette
+from ..i18n import LANGUAGES, current_lang, init_lang, key_for, set_lang, tr
 from ..core.design import HOOPS, Design, EmbObject, FillObject, Hoop, RunObject, SatinObject
 from ..core.machines import MACHINE_PROFILES, MachineProfile
 from ..core.stitchplan import Thread
@@ -217,6 +218,8 @@ def _color_icon(rgb: tuple[int, int, int], size: int = 16) -> QIcon:
 class MainWindow(QMainWindow):
     def __init__(self, defer_starter: bool = False, show_tour_on_init: bool = True):
         super().__init__()
+        init_lang()
+        self._tr_bindings: list[tuple] = []
         self.setWindowTitle(f"{APP_NAME} Studio {__version__}  —  Universal Open-Source Embroidery & Digitizing Suite")
         self.resize(1540, 920)
         self.setStyleSheet(STUDIO_STYLE)
@@ -242,6 +245,7 @@ class MainWindow(QMainWindow):
 
         lbl_m = QLabel("Maschine:")
         lbl_m.setStyleSheet("color: #8ab4f8; font-weight: 600;")
+        self._bind(lbl_m.setText, "lbl_machine")
         ctx_hb.addWidget(lbl_m)
         self.cmb_machine = QComboBox()
         self.cmb_machine.setMinimumWidth(225)
@@ -253,6 +257,7 @@ class MainWindow(QMainWindow):
         ctx_hb.addSpacing(4)
         lbl_h = QLabel("Stickrahmen:")
         lbl_h.setStyleSheet("color: #8ab4f8; font-weight: 600;")
+        self._bind(lbl_h.setText, "lbl_hoop")
         ctx_hb.addWidget(lbl_h)
         self.cmb_hoop = QComboBox()
         self.cmb_hoop.setMinimumWidth(200)
@@ -266,6 +271,7 @@ class MainWindow(QMainWindow):
         btn_fit.setIcon(studio_icon("fit", 16))
         btn_fit.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         btn_fit.setText("Auto-Fit")
+        self._bind(btn_fit.setText, "btn_autofit")
         btn_fit.setToolTip("Design optimal in den gewählten Rahmen einpassen (Ctrl+F)")
         btn_fit.clicked.connect(self.action_fit_to_hoop)
         ctx_hb.addWidget(btn_fit)
@@ -277,6 +283,18 @@ class MainWindow(QMainWindow):
         ctx_hb.addWidget(self.btn_fabric)
 
         ctx_hb.addStretch(1)
+
+        lbl_lang = QLabel("Sprache:")
+        lbl_lang.setStyleSheet("color: #8ab4f8; font-weight: 600;")
+        self._bind(lbl_lang.setText, "lbl_lang")
+        ctx_hb.addWidget(lbl_lang)
+        self.cmb_lang = QComboBox()
+        for code, label in LANGUAGES:
+            self.cmb_lang.addItem(label, code)
+        self.cmb_lang.setCurrentIndex(max(0, next((i for i, (c, _) in enumerate(LANGUAGES) if c == current_lang()), 0)))
+        self.cmb_lang.currentIndexChanged.connect(self._on_language_changed)
+        ctx_hb.addWidget(self.cmb_lang)
+        ctx_hb.addSpacing(6)
         self.lbl_hoop_strategy = QLabel("Strategie: Ausgewogen · 100% Zugkompensation")
         self.lbl_hoop_strategy.setStyleSheet(
             "color: #81c995; background-color: rgba(129, 201, 149, 0.12); "
@@ -312,17 +330,82 @@ class MainWindow(QMainWindow):
         self.canvas.design_modified.connect(self._on_design_modified)
         self.canvas.tool_changed.connect(self._set_tool)
         self.canvas.cursor_moved.connect(self._on_cursor_moved)
+        self.retranslate_ui()
 
         if not defer_starter:
             self._load_starter_design()
 
+    # ------------------------------------------------------------ Mehrsprachigkeit
+    def _bind(self, setter, key: str, escape: bool = False, fmt=None):
+        """Bindet ein Widget-Textsetzer an einen i18n-Schlüssel und setzt den aktuellen Text sofort."""
+        self._tr_bindings.append((setter, key, escape, fmt))
+        self._apply_binding(setter, key, escape, fmt)
+
+    @staticmethod
+    def _apply_binding(setter, key, escape, fmt):
+        txt = tr(key)
+        if escape:
+            txt = txt.replace("&", "&&")
+        if fmt is not None:
+            txt = fmt(txt)
+        setter(txt)
+
+    def retranslate_ui(self):
+        for setter, key, escape, fmt in self._tr_bindings:
+            self._apply_binding(setter, key, escape, fmt)
+        lbl = {"slate": "fabric_slate", "sand": "fabric_sand", "light": "fabric_light"}
+        self.btn_fabric.setText(tr(lbl.get(self.canvas.fabric_theme, "fabric_slate")))
+        self._refresh_stats()
+        self._refresh_needle_list()
+        self._populate_properties(self.canvas.selected)
+        if hasattr(self, "lbl_hoop_strategy"):
+            self.lbl_hoop_strategy.setText(
+                f"{tr('lbl_strategy')}: {self.canvas.design.hoop.strategy_description}"
+            )
+        self.btn_play.setText(tr("btn_pause") if self.btn_play.isChecked() else tr("btn_play"))
+        self.canvas.update()
+
+    def _on_language_changed(self):
+        lang = self.cmb_lang.currentData()
+        if lang and lang != current_lang():
+            set_lang(lang)
+            self.retranslate_ui()
+
+    def _on_catalog_changed(self):
+        pal = self.cmb_catalog.currentData()
+        if pal is None:
+            return
+        set_active_palette(pal)
+        self._rebuild_swatch_grid()
+        self.status.showMessage(f"{tr('lbl_catalog')} {pal.name} ({len(pal.threads)})", 6000)
+
+    def _rebuild_swatch_grid(self):
+        grid = self.swatch_grid
+        while grid.count():
+            item = grid.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+        cols = 7
+        for idx, t in enumerate(active_palette().threads[:70]):
+            btn = QToolButton()
+            btn.setFixedSize(30, 24)
+            btn.setToolTip(f"{t.brand} {t.code} {t.name} ({t.hex})")
+            r, g, b = t.color
+            btn.setStyleSheet(
+                f"QToolButton {{ background-color: rgb({r},{g},{b}); border: 1px solid rgba(255,255,255,35); border-radius: 5px; }}"
+                f"QToolButton:hover {{ border: 2px solid #a8c7fa; }}"
+            )
+            btn.clicked.connect(lambda _=False, th=t: self._apply_thread(th))
+            grid.addWidget(btn, idx // cols, idx % cols)
+
     def cycle_fabric_theme(self):
-        order = [("slate", "Stoff: Dunkel"), ("sand", "Stoff: Sand"), ("light", "Stoff: Hell")]
+        order = [("slate", "fabric_slate"), ("sand", "fabric_sand"), ("light", "fabric_light")]
         cur = self.canvas.fabric_theme
         idx = next((i for i, (k, _) in enumerate(order) if k == cur), 0)
-        nxt_k, nxt_lbl = order[(idx + 1) % len(order)]
+        nxt_k, nxt_key = order[(idx + 1) % len(order)]
         self.canvas.fabric_theme = nxt_k
-        self.btn_fabric.setText(nxt_lbl)
+        self.btn_fabric.setText(tr(nxt_key))
         self.canvas.update()
 
     def resizeEvent(self, event):
@@ -333,12 +416,15 @@ class MainWindow(QMainWindow):
     # ======================================= 1. Menüs & Kompakte Header-Toolbar
     def _build_menus_and_header(self):
         mb = self.menuBar()
-        m_file = mb.addMenu("&Datei")
-        m_edit = mb.addMenu("&Bearbeiten")
-        m_view = mb.addMenu("&Ansicht")
-        m_create = mb.addMenu("&Digitalisieren")
-        m_machine = mb.addMenu("&Maschine && Export")
-        m_help = mb.addMenu("&Hilfe")
+        m_file = mb.addMenu("")
+        m_edit = mb.addMenu("")
+        m_view = mb.addMenu("")
+        m_create = mb.addMenu("")
+        m_machine = mb.addMenu("")
+        m_help = mb.addMenu("")
+        for _m, _k in ((m_file, "menu_file"), (m_edit, "menu_edit"), (m_view, "menu_view"),
+                       (m_create, "menu_create"), (m_machine, "menu_machine"), (m_help, "menu_help")):
+            self._bind(_m.setTitle, _k, fmt=lambda s: s.replace("&&", "&&"))
 
         tb = QToolBar("Studio-Leiste", self)
         self.top_toolbar = tb
@@ -350,6 +436,9 @@ class MainWindow(QMainWindow):
         def add_act(menu, text, slot, shortcut=None, toolbar_label=None, icon_kind=None, checkable=False):
             ic = studio_icon(icon_kind, 16) if icon_kind else QIcon()
             act = QAction(ic, text, self)
+            key = key_for(text)
+            if key:
+                self._bind(act.setText, key, escape=True)
             if shortcut:
                 act.setShortcut(QKeySequence(shortcut))
             act.setCheckable(checkable)
@@ -357,7 +446,14 @@ class MainWindow(QMainWindow):
             menu.addAction(act)
             if toolbar_label:
                 tb_act = QAction(ic, toolbar_label, self)
-                tb_act.setToolTip(f"{text} ({shortcut})" if shortcut else text)
+                tb_key = key_for(toolbar_label)
+                if tb_key:
+                    self._bind(tb_act.setText, tb_key, escape=True)
+                if key:
+                    self._bind(
+                        tb_act.setToolTip, key, escape=False,
+                        fmt=(lambda s, sc=shortcut: f"{s} ({sc})" if sc else s),
+                    )
                 tb_act.setCheckable(checkable)
                 tb_act.triggered.connect(slot)
                 tb.addAction(tb_act)
@@ -428,6 +524,9 @@ class MainWindow(QMainWindow):
 
         def rail_btn(label: str, icon_kind: str, tip: str, slot, checkable: bool = True) -> QAction:
             a = QAction(studio_icon(icon_kind, 17), label, self)
+            _k = key_for(label)
+            if _k:
+                self._bind(a.setText, _k, escape=True)
             a.setToolTip(tip)
             a.setCheckable(checkable)
             a.triggered.connect(slot)
@@ -455,6 +554,7 @@ class MainWindow(QMainWindow):
     # =============================== 3. Linkes Dock: Kompaktes Farb-Grid & Sequenz
     def _build_left_palette_dock(self):
         dock = QDockWidget("Garnfarben && Nadel-Sequenz", self)
+        self._bind(dock.setWindowTitle, "dock_palette")
         self.left_dock = dock
         dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         w = QWidget()
@@ -480,27 +580,31 @@ class MainWindow(QMainWindow):
         hc.addWidget(btn_rgb)
         lay.addWidget(card_cur)
 
+        # Garnkatalog-Auswahl (Madeira, Isacord, Gunold, Brother, Universal)
+        hb_cat = QHBoxLayout()
+        lbl_cat = QLabel("Garnkatalog:")
+        lbl_cat.setStyleSheet("color: #8ab4f8; font-weight: 600;")
+        self._bind(lbl_cat.setText, "lbl_catalog")
+        self.cmb_catalog = QComboBox()
+        for pal in CATALOG_PALETTES:
+            self.cmb_catalog.addItem(pal.name, pal)
+        self.cmb_catalog.setCurrentIndex(0)
+        hb_cat.addWidget(lbl_cat)
+        hb_cat.addWidget(self.cmb_catalog, 1)
+        lay.addLayout(hb_cat)
+
         # Kompaktes 7-spaltiges Farbfeld-Grid (statt klobiger langer Liste!)
         swatch_card = QFrame()
         swatch_card.setObjectName("card")
-        grid = QGridLayout(swatch_card)
-        grid.setContentsMargins(6, 6, 6, 6)
-        grid.setSpacing(4)
-        cols = 7
-        for idx, t in enumerate(GENERIC.threads[:49]):
-            btn = QToolButton()
-            btn.setFixedSize(30, 24)
-            btn.setToolTip(f"{t.code} {t.name} ({t.hex})")
-            r, g, b = t.color
-            btn.setStyleSheet(
-                f"QToolButton {{ background-color: rgb({r},{g},{b}); border: 1px solid rgba(255,255,255,35); border-radius: 5px; }}"
-                f"QToolButton:hover {{ border: 2px solid #a8c7fa; }}"
-            )
-            btn.clicked.connect(lambda _=False, th=t: self._apply_thread(th))
-            grid.addWidget(btn, idx // cols, idx % cols)
+        self.swatch_grid = QGridLayout(swatch_card)
+        self.swatch_grid.setContentsMargins(6, 6, 6, 6)
+        self.swatch_grid.setSpacing(4)
+        self._rebuild_swatch_grid()
+        self.cmb_catalog.currentIndexChanged.connect(self._on_catalog_changed)
         lay.addWidget(swatch_card)
 
         lbl_seq = QLabel("Farb- & Nadel-Sequenz im Design:")
+        self._bind(lbl_seq.setText, "lbl_seq")
         lbl_seq.setStyleSheet("color: #9ba4b8; font-weight: 600; margin-top: 4px;")
         lay.addWidget(lbl_seq)
 
@@ -523,6 +627,7 @@ class MainWindow(QMainWindow):
     # ======================================= 4. Rechtes Dock: Ebenen & Inspektor
     def _build_right_dock(self):
         dock = QDockWidget("Ebenen && Objekt-Inspektor", self)
+        self._bind(dock.setWindowTitle, "dock_right")
         self.right_dock = dock
         dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         split = QSplitter(Qt.Vertical)
@@ -545,8 +650,10 @@ class MainWindow(QMainWindow):
         btn_dn.setToolTip("Objekt in der Stickreihenfolge nach unten")
         btn_dn.clicked.connect(lambda: self._move_selected_object(1))
         btn_vis = QPushButton("👁 Sichtbar")
+        self._bind(btn_vis.setText, "btn_visible")
         btn_vis.clicked.connect(self._toggle_selected_visibility)
         btn_dup = QPushButton("⧉ Kopie")
+        self._bind(btn_dup.setText, "btn_copy")
         btn_dup.clicked.connect(self.action_duplicate_selected)
         btn_del = QPushButton("🗑")
         btn_del.setToolTip("Ausgewähltes Objekt löschen (Entf)")
@@ -560,6 +667,7 @@ class MainWindow(QMainWindow):
         vb = QVBoxLayout(w_bot)
         vb.setContentsMargins(8, 4, 8, 8)
         lbl_insp = QLabel("Objekt-Parameter (Live-Neuberechnung):")
+        self._bind(lbl_insp.setText, "lbl_inspector")
         lbl_insp.setStyleSheet("color: #8ab4f8; font-weight: 600;")
         vb.addWidget(lbl_insp)
         self.prop_container = QFrame()
@@ -578,23 +686,27 @@ class MainWindow(QMainWindow):
     # ========================================= 5. Unten: Simulator & Statusleiste
     def _build_bottom_bar(self):
         dock = QDockWidget("Stich-Simulator && Näh-Player", self)
+        self._bind(dock.setWindowTitle, "dock_bottom")
         self.bottom_dock = dock
         dock.setFeatures(QDockWidget.NoDockWidgetFeatures)
         w = QWidget()
         hb = QHBoxLayout(w)
         hb.setContentsMargins(12, 6, 12, 6)
 
-        self.btn_play = QPushButton("▶ Simulation")
+        self.btn_play = QPushButton(tr("btn_play"))
         self.btn_play.setObjectName("primaryBtn")
         self.btn_play.setCheckable(True)
         self.btn_play.toggled.connect(self._toggle_sim)
         hb.addWidget(self.btn_play)
 
         btn_reset_sim = QPushButton("⏭ Alle zeigen")
+        self._bind(btn_reset_sim.setText, "btn_show_all")
         btn_reset_sim.clicked.connect(self._reset_sim)
         hb.addWidget(btn_reset_sim)
 
-        hb.addWidget(QLabel("  Fortschritt:"))
+        lbl_prog = QLabel("  Fortschritt:")
+        self._bind(lbl_prog.setText, "lbl_progress")
+        hb.addWidget(lbl_prog)
         self.slider_sim = QSlider(Qt.Horizontal)
         self.slider_sim.setRange(0, 100)
         self.slider_sim.setValue(100)
@@ -605,7 +717,9 @@ class MainWindow(QMainWindow):
         self.lbl_sim.setMinimumWidth(115)
         hb.addWidget(self.lbl_sim)
 
-        hb.addWidget(QLabel("Tempo:"))
+        lbl_spd = QLabel("Tempo:")
+        self._bind(lbl_spd.setText, "lbl_speed")
+        hb.addWidget(lbl_spd)
         self.sp_sim_speed = QSpinBox()
         self.sp_sim_speed.setRange(5, 500)
         self.sp_sim_speed.setValue(45)
@@ -680,14 +794,14 @@ class MainWindow(QMainWindow):
         w, h = x1 - x0, y1 - y0
         kin = analyze_kinematics(p, self.canvas.design.settings.machine_spm)
         self.lbl_stats.setText(
-            f"Stiche: {p.stitch_count:,}   ·   "
-            f"Mass: {w:.1f} × {h:.1f} mm   ·   "
-            f"Ø Stichlänge: {kin['avg_len']:.1f} mm   ·   "
-            f"Eff. Tempo: ~{kin['eff_spm']} SPM   ·   "
-            f"Spitzendichte: {kin['max_per_mm2']} St./mm²   ·   "
-            f"Farbwechsel: {p.color_changes}   ·   "
+            f"{tr('stats_stitches')}: {p.stitch_count:,}   ·   "
+            f"{tr('stats_size')}: {w:.1f} × {h:.1f} mm   ·   "
+            f"{tr('stats_avg')}: {kin['avg_len']:.1f} mm   ·   "
+            f"{tr('stats_spm')}: ~{kin['eff_spm']} SPM   ·   "
+            f"{tr('stats_peak')}: {kin['max_per_mm2']}/mm²   ·   "
+            f"{tr('stats_colors')}: {p.color_changes}   ·   "
             f"Trims: {p.trim_count}   ·   "
-            f"Laufzeit: ca. {kin['real_minutes']:.1f} Min.".replace(",", "'")
+            f"{tr('stats_runtime')} {kin['real_minutes']:.1f} {tr('stats_min')}".replace(",", "'")
         )
 
     def _refresh_object_list(self):
@@ -719,7 +833,7 @@ class MainWindow(QMainWindow):
             cnt = sum(1 for s in b.stitches if s.cmd == 0)
             it = QListWidgetItem(
                 _color_icon(b.thread.color),
-                f"#{bi + 1} (Nadel {nd}): {b.thread.name or b.thread.hex} · {cnt} St.{warn}",
+                f"#{bi + 1} ({tr('needle')} {nd}): {b.thread.name or b.thread.hex} · {cnt} St.{warn}",
             )
             self.list_needles.addItem(it)
 
@@ -730,7 +844,7 @@ class MainWindow(QMainWindow):
             self.prop_layout.removeRow(0)
 
         if obj is None:
-            lbl_empty = QLabel("Kein Objekt ausgewählt.\nKlicke ein Element auf der Leinwand oder in der Ebenenliste an.")
+            lbl_empty = QLabel(tr("lbl_no_sel"))
             lbl_empty.setWordWrap(True)
             lbl_empty.setStyleSheet("color: #7c8599;")
             self.prop_layout.addRow(lbl_empty)
@@ -740,7 +854,7 @@ class MainWindow(QMainWindow):
         ed_name = QLineEdit(obj.name)
         ed_name.setCursorPosition(0)
         ed_name.editingFinished.connect(lambda: self._set_obj_attr(obj, "name", ed_name.text()))
-        self.prop_layout.addRow("Bezeichnung:", ed_name)
+        self.prop_layout.addRow(tr("lbl_obj_name") + ":", ed_name)
 
         for attr, label, typ, vmin, vmax, step in getattr(obj, "PARAMS", ()):
             val = getattr(obj, attr)
@@ -825,7 +939,7 @@ class MainWindow(QMainWindow):
         if self.canvas.design.hoop.mode == "cap":
             self._apply_cap_center_out_order()
         if hasattr(self, "lbl_hoop_strategy"):
-            self.lbl_hoop_strategy.setText(f"Strategie: {self.canvas.design.hoop.strategy_description}")
+            self.lbl_hoop_strategy.setText(f"{tr('lbl_strategy')}: {self.canvas.design.hoop.strategy_description}")
         self.rebuild_plan()
         self.canvas.zoom_to_fit()
         self.status.showMessage(
@@ -1326,10 +1440,10 @@ class MainWindow(QMainWindow):
         if playing:
             if self.canvas.sim_limit is None or self.canvas.sim_limit >= self.canvas.plan.stitch_count:
                 self.canvas.sim_limit = 1
-            self.btn_play.setText("⏸ Pause")
+            self.btn_play.setText(tr("btn_pause"))
             self.sim_timer.start()
         else:
-            self.btn_play.setText("▶ Simulation")
+            self.btn_play.setText(tr("btn_play"))
             self.sim_timer.stop()
 
     def _sim_step(self):

@@ -1,21 +1,23 @@
 # 🪡 OpenStitch Studio
 
+🌐 **Language / Sprache:** **English** · [Deutsch](./README.de.md) · [Français](./README.fr.md) · [Español](./README.es.md)
+
 **Universal Open-Source Embroidery & Digitizing Suite for Windows, macOS & Linux**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg)](https://www.python.org/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-2ea44f.svg)](#quickstart--installation)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-2ea44f.svg)](#-quickstart--installation)
 [![PRs Welcome](https://img.shields.io/badge/PRs%20%26%20Feedback-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-**OpenStitch Studio** ist eine moderne, quelloffene Stick- und Digitalisiersoftware (Digitizing Suite) mit einem augenschonenden **Dark-Studio-Interface**, Echtzeit-3D-Seidenglanz-Vorschau, intelligentem **Auto-Digitizer**, **PhotoStitch** und nativer Unterstützung für alle gängigen Haushalts- und Industrie-Stickmaschinen (**Tajima, Brother, Barudan, Ricoma, ZSK, Janome, Bernina, Pfaff/Husqvarna, Melco**).
+**OpenStitch Studio** is a modern, open-source embroidery digitizing suite with an eye-friendly **dark studio interface**, real-time 3D thread preview, a smart **Auto-Digitizer**, **PhotoStitch**, real **thread catalogs** (Madeira, Isacord, Gunold, Brother) and a **UI in 4 languages** (English, Deutsch, Français, Español). It supports all common home and industrial embroidery machines (**Tajima, Brother, Barudan, Ricoma, ZSK, Janome, Bernina, Pfaff/Husqvarna, Melco**).
 
-> 💬 **Feedback & Mitarbeit erwünscht!**  
-> Dieses Projekt lebt von echtem Praxis-Feedback an verschiedensten Stickmaschinen und von Community-Beiträgen. Wenn du Ideen, Wünsche oder Bugs findest oder selbst mitentwickeln möchtest: Erstelle gerne ein [Issue](https://github.com/lb2002/openstitch/issues) oder einen [Pull Request](./CONTRIBUTING.md)!
+> 💬 **Feedback & contributions welcome!**
+> This project thrives on real-world feedback from many different embroidery machines and on community contributions. Found a bug, have an idea, or want to help build it? Open an [Issue](https://github.com/lb2002/openstitch/issues) or a [Pull Request](./CONTRIBUTING.md)!
 
 ![OpenStitch Studio — Dark Studio Interface](./assets/screenshot_studio.png)
 
 <details>
-<summary><b>🔍 Vorschau: Interaktiver In-App Studio-Rundgang (Spotlight & Coach-Marks)</b></summary>
+<summary><b>🔍 Preview: interactive in-app studio tour (spotlight & coach marks)</b></summary>
 <br>
 
 ![OpenStitch Studio — Interactive Onboarding Tour](./assets/screenshot_tour.png)
@@ -26,113 +28,97 @@
 
 ## ✨ Highlights & Features
 
-### 1. 🪄 Intelligenter Auto-Digitizer (Bild / Logo → Stickdatei)
-* **Wahrnehmungstreue Farbreduktion im CIE-Lab-Farbraum** + automatisches Matching auf echte Stickgarn-Paletten (Madeira / Isacord / Universal).
-* **Rand-Flood-Fill Hintergrund-Erkennung:** Entfernt den Bildhintergrund automatisch, lässt aber gleichfarbige Innendetails (z. B. weiße Schrift im Logo) unangetastet.
-* **Automatische Stichart-Klassifikation per Medial-Axis-Skelett & Distanztransformation:**
-  * Feine Konturen → **Dreifach-/Beanstich**
-  * Schriften & Säulen → **Auto-Satinstich** mit fließend mitdrehendem Stichwinkel, Kurzstichen (Short-Stitches) in engen Innenkurven, Split-Satin bei breiten Säulen und automatischer Unterlage
-  * Große Flächen → **Tatami-Füllstich** oder **gebogener Kontur-Füllstich (Contour Fill)** mit Boustrophedon-Abschnittszerlegung, unsichtbarem Travel-Routing entlang der Außenkante, Kanten-/Gitter-Unterlage und richtungsabhängiger Zugkompensation (Pull Compensation)
-* **Color-Trap vs. Smart Knockdown + 0.7 mm Überlappungslinie:** Verhindert einerseits brettharte Doppellagen („Bulletproof Embroidery“) und andererseits weiße Stoffblitzer (Passerlücken) zwischen angrenzenden Farbflächen.
-* **Stoffprofile:** Standard (Baumwolle/Twill), Piqué/Polo/Strick, Frottee/Handtuch, Kappe/Cap, Leichter Stoff.
-* **Drag & Drop:** Ziehe Bilder (`.png`, `.jpg`, `.webp`), `.svg`-Vektorgrafiken oder Stickdateien direkt aus dem Explorer/Finder ins Programmfenster.
+### 1. 🪄 Smart Auto-Digitizer (image / logo → embroidery file)
+* **Perceptual colour reduction in CIE-Lab** + automatic matching to real thread catalogs (**Madeira Polyneon 40, Isacord 40, Gunold Poly 40, Brother, Universal**).
+* **Edge flood-fill background removal:** removes the background but keeps same-coloured inner details (e.g. white lettering in a logo).
+* **Automatic stitch-type classification** via medial-axis skeleton & distance transform:
+  * thin lines → **triple / bean run**
+  * lettering & columns → **auto satin** with smoothly rotating stitch angle, short-stitching on tight inner curves, split satin for wide columns and automatic underlay
+  * large areas → **tatami fill** or curved **contour fill** with boustrophedon region splitting, hidden travel routing along the outline, edge/lattice underlay and directional pull compensation
+* **Colour trap vs. smart knockdown + 0.7 mm overlap lip:** avoids bullet-proof stacking while eliminating fabric gaps between adjacent colours.
+* **Fabric presets:** standard, piqué/polo/knit, terry/towel, caps, lightweight.
+* **Drag & drop:** drop images (`.png`, `.jpg`, `.webp`), `.svg` vectors or embroidery files straight onto the window.
 
-### 2. 🎨 Manuelles Digitalisieren, Knoten-Editor & Pro-Werkzeuge
-* **Direkt-Werkzeuge:** Tatami-Fläche (`F`), Satin-Säule (`S`), Lauf-/Dreifachstich (`R`) und **Interaktiver Knoten-Editor (`N`)** direkt auf der Leinwand.
-* **Parametrischer Live-Inspektor:** Jedes Objekt bleibt vollständig editierbar (Reihenabstand, Stichlänge, Winkel, Kontur-Füllung, Zugkompensation, Unterlage, Ein-/Ausstich-Einkürzung). Beim Skalieren wird die Stichdichte automatisch neu berechnet.
-* **3D-Puff-Schaumstoff-Modus (für Caps):** Erzeugt hochdichte Satin-Säulen (0.24 mm) mit speziell perforierenden **Pinch-End-Caps** zum sauberen Durchtrennen von 2–3 mm 3D-Stick-Schaumstoff.
-* **1-Klick Applikation (Appliqué):** Erzeugt automatisch Platzierungslinie (mit Maschinen-Stopp), Stoff-Fixiernaht (Tack-Down) und breite Satin-Deckkante.
-* **PhotoStitch:** Verwandelt Porträt- und Landschaftsfotos in Monochrom-, Sepia- oder 4-Farb-CMYK-Wellenstickerei.
-* **SVG-Vektor-Import & TTF/OTF-Schrift-Generator** (inkl. Bogentext & automatischer Satin/Tatami-Wahl).
+### 2. 🎨 Manual digitizing, node editor & pro tools
+* **Direct tools:** tatami (`F`), satin (`S`), running/bean stitch (`R`) and an interactive **node editor (`N`)**.
+* **Parametric live inspector:** every object stays fully editable; scaling recalculates stitch density.
+* **3D puff foam mode (caps):** dense satin (0.24 mm) with perforating pinch end-caps for 2–3 mm foam.
+* **1-click appliqué:** placement line (with stop), tack-down and satin cover border.
+* **PhotoStitch:** portrait/landscape photos → monochrome, sepia or 4-colour CMYK wave embroidery.
+* **SVG import & TTF/OTF lettering** (arc text, automatic satin/tatami choice).
 
-### 3. 🩺 Stichdichte-Wächter, Heatmap & Qualitäts-Doktor (`F7`)
-* **Automatischer Anti-Fadenbruch-Filter (`density_guard`):** Verhindert Nadelkollisionen, Fadennester („Birdnesting“) und Stofflöcher.
-* **Live-Stichdichte-Heatmap:** Zeigt kritische Dichtestellen farbcodiert (Grün / Gelb / Rot) auf der Leinwand.
-* **Qualitäts-Doktor (`F7`):** Prüft vor dem Export Rahmen-Sicherheitsabstand, Nadelanzahl, Kurzstich-Spitzen und Fadenschnitte.
+### 3. 🩺 Density guard, heatmap & quality doctor (`F7`)
+* **Anti-thread-break filter** prevents needle collisions, bird-nesting and fabric holes.
+* **Live stitch-density heatmap** (green / yellow / red).
+* **Quality doctor:** checks hoop clearance, needle count, micro-stitches and trims before export.
+* **Binary verification on export:** every exported file is re-read by an independent parser and checked for size and geometry.
 
-### 4. 🏭 Herstellerneutral & Alle wichtigen Maschinenformate
-* **Integrierte Maschinenprofile & Rahmen-Strategien:**
-  * Universal Standard (`.DST` / `.PES` / `.EXP`)
-  * **Tajima** (TME / TMF / TMFD / TMBP — `.DST`)
-  * **Brother** (PR-Serie Mehrnadel & Innov-is Haushalt — `.PES` / `.PEC`)
-  * **Barudan** (BEMR / BEXY / BEKT — `.U01` / `.DST`)
-  * **Ricoma / HappyJapan / ZSK** (`.DST`)
-  * **Janome / Elna / Bernina** (`.JEF` / `.EXP`)
-  * **Pfaff / Husqvarna Viking** (`.VP3`)
-  * **Melco** (EMT10/4, Amaya, Bravo — nativer `.EXP`-Generator + eingebauter 1.44 MB FAT12 `.IMG` GoTek/FlashFloppy-Diskettenmanager & optionales Raspberry-Pi WLAN-NetBridge-Modul in `melco_netbridge/`).
-* **Intelligente Rahmen-Strategien:** Passt Unterlage, Zugkompensation und Stickreihenfolge automatisch an kleine Hemdrahmen, Standardrahmen, Jackenrücken oder gebogene Kappenrahmen (*Center-Out & Bottom-Up*) an.
-* **A4-PDF-Produktionsblatt:** Exportiert ein druckfertiges Produktions- & Einrichteblatt mit Nadelbelegung, Garnverbrauch, Stichzahl und Laufzeitschätzung.
+### 4. 🌍 Languages & real thread catalogs
+* **UI languages:** 🇬🇧 English · 🇩🇪 Deutsch · 🇫🇷 Français · 🇪🇸 Español — switch live at the top of the window.
+* **Thread catalogs with official colour numbers:** Madeira Polyneon No. 40, Isacord Polyester No. 40, Gunold POLY 40, Brother Embroidery and a universal palette; custom CSV palettes can be loaded too.
+
+### 5. 🏭 Manufacturer-neutral & all major machine formats
+* **Built-in machine profiles & hoop strategies:** Universal (`.DST` / `.PES` / `.EXP`), **Tajima** (`.DST`), **Brother** (`.PES` / `.PEC`), **Barudan** (`.U01` / `.DST`), **Ricoma / HappyJapan / ZSK** (`.DST`), **Janome / Elna / Bernina** (`.JEF` / `.EXP`), **Pfaff / Husqvarna Viking** (`.VP3`), **Melco** (native `.EXP`, built-in 1.44 MB FAT12 `.IMG` GoTek/FlashFloppy manager and an optional Raspberry Pi Wi-Fi bridge in `melco_netbridge/`).
+* **Smart hoop strategies:** underlay, pull compensation and stitch order adapt to small hoops, standard hoops, jacket backs and curved cap frames (*centre-out & bottom-up*).
+* **A4 PDF production sheet:** needle assignment, thread usage, stitch count and runtime estimate.
 
 ---
 
 ## 🚀 Quickstart & Installation
 
-### Option A: 1-Klick Direkt-Download (ohne Python-Installation!)
-Lade dir auf der **[GitHub Release-Seite (v0.1.0)](https://github.com/lb2002/openstitch/releases/tag/v0.1.0)** direkt die fertige Anwendung für dein System herunter:
-* 🪟 **Windows (64-Bit Einzeldatei):** **[`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/download/v0.1.0/OpenStitch-Studio-Windows-x64.exe)** *(einfach herunterladen & doppelklicken, kein Entpacken nötig!)*
-* 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** **[`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.1.0/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)** *(`OpenStitch Studio.app`)*
-* 🍎 **macOS (Intel x64):** **[`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.1.0/OpenStitch-Studio-macOS-Intel-x64.zip)** *(`OpenStitch Studio.app`)*
+### Option A: 1-click download (no Python required)
+Get the ready-made app from the **[GitHub release page (v0.1.0)](https://github.com/lb2002/openstitch/releases/tag/v0.1.0)**:
+* 🪟 **Windows (64-bit, single file):** [`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/download/v0.1.0/OpenStitch-Studio-Windows-x64.exe) *(download & double-click, nothing to unpack)*
+* 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** [`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.1.0/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)
+* 🍎 **macOS (Intel x64):** [`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.1.0/OpenStitch-Studio-macOS-Intel-x64.zip)
 
----
+### Option B: run from source (Windows, macOS & Linux)
+Requires **Python 3.10+**.
 
-### Option B: Aus dem Quellcode starten (Windows, macOS & Linux)
-* Voraussetzung: **Python 3.10+**
-
-### 1. Repository klonen & starten
-
-#### Windows
-Doppelklicke auf **`start_windows.bat`** (richtet beim ersten Start automatisch die virtuelle Umgebung `.venv` ein) — oder im Terminal:
-```powershell
-git clone https://github.com/lb2002/openstitch.git
-cd openstitch
-python -m venv .venv
-.venv\Scripts\pip install -e .
-.venv\Scripts\python.exe main.py
-```
-
-#### macOS / Linux
-Doppelklicke auf **`start_macos.command`** (`chmod +x start_macos.command`) — oder im Terminal:
 ```bash
 git clone https://github.com/lb2002/openstitch.git
 cd openstitch
-python3 -m venv .venv
+python -m venv .venv
+# Windows:  .venv\Scripts\pip install -e .   &&   .venv\Scripts\python.exe main.py
+# macOS/Linux:
 .venv/bin/pip install -e .
 .venv/bin/python main.py
 ```
 
-Beim ersten Start begrüßt dich **OpenStitch Studio** mit dem offiziellen **OpenStitch-Emblem** im Stickrahmen und einem interaktiven **7-Schritte In-App Studio-Rundgang** (jederzeit wieder aufrufbar über `Hilfe` → `Interaktiven Studio-Rundgang starten (F1)`).
+On first launch you are greeted by the official **OpenStitch emblem** in the hoop and an interactive **7-step in-app tour** (reopen any time with `F1`).
 
 ---
 
-## 🗂️ Projekt-Architektur
+## 🗂️ Project layout
 
 ```text
 openstitch/
 ├── openstitch/
-│   ├── auto/          # CIE-Lab Farbreduktion, Auto-Digitizer, PhotoStitch & Garnpaletten
-│   ├── core/          # Design-Datenmodell, Stichplan, Rahmenprofile & Maschinenprofile
-│   ├── engine/        # Geometrie, Tatami/Contour-Fill, Satin-Säulen, 3D-Puff, Appliqué, Density-Guard
-│   ├── io/            # Exporter/Importer (DST, PES, EXP, JEF, VP3, U01), FAT12-Generator, PDF-Report
-│   ├── text/          # TTF/OTF Vektor-Schrift-Engine & Bogentext
-│   └── ui/            # Google Material 3 Dark-Studio GUI, 3D-Canvas, Dialoge & In-App-Onboarding
-├── melco_netbridge/   # Optionaler WLAN-USB-Emulator-Server (z. B. für Raspberry Pi Zero 2 W)
-└── tests/             # Automatisierte Pytest-Testsuite
+│   ├── auto/          # CIE-Lab colour reduction, Auto-Digitizer, PhotoStitch & thread catalogs
+│   ├── core/          # design model, stitch plan, hoop & machine profiles
+│   ├── engine/        # geometry, tatami/contour fill, satin, 3D puff, appliqué, density guard
+│   ├── io/            # DST, PES, EXP, JEF, VP3, U01 import/export, FAT12 generator, PDF report
+│   ├── text/          # TTF/OTF vector lettering engine & arc text
+│   ├── ui/            # Material 3 dark studio GUI, 3D canvas, dialogs & onboarding
+│   └── i18n.py        # UI translations (EN / DE / FR / ES)
+├── melco_netbridge/   # optional Wi-Fi USB-emulator server (e.g. Raspberry Pi Zero 2 W)
+└── tests/             # automated pytest suite
 ```
 
 ---
 
-## 🤝 Mitmachen & Feedback (Contributing)
+## 🤝 Contributing & feedback
 
-Wir freuen uns riesig über jedes Feedback aus der Stick- und Maker-Community:
-* 🌟 **Gib dem Repo einen Star**, wenn dir OpenStitch Studio gefällt!
-* 🐛 **Bug-Reports & Maschinen-Tests:** Öffne ein [GitHub Issue](https://github.com/lb2002/openstitch/issues) und schreib gern dazu, mit welcher Stickmaschine du arbeitest.
-* 🔧 **Pull Requests:** Lies unsere [CONTRIBUTING.md](./CONTRIBUTING.md) für Details zum Setup und zur Beitragsvereinbarung.
+* 🌟 **Star the repo** if you like OpenStitch Studio!
+* 🐛 **Bug reports & machine tests:** open a [GitHub Issue](https://github.com/lb2002/openstitch/issues) and tell us which machine you use.
+* 🌐 **Translations:** add or improve a language in [`openstitch/i18n.py`](./openstitch/i18n.py).
+* 🔧 **Pull requests:** see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
-## 📜 Lizenz & Urheberrecht (License)
+## 📜 License & copyright
 
 Copyright © 2026 **Linus Baumberger** ([@lb2002](https://github.com/lb2002)).
 
-* **Open-Source Copyleft Lizenz:** Dieses Projekt ist unter der **[GNU Affero General Public License v3.0 (AGPL-3.0-or-later)](./LICENSE)** veröffentlicht. Jeder darf die Software kostenlos nutzen, studieren, verbessern und teilen. Jegliche Weiterentwicklungen, abgeleitete Werke oder Netzwerk-/Cloud-Dienste müssen unter derselben Lizenz quelloffen bleiben – ein unbefugtes Verkaufen als geschlossene/proprietäre Software durch Dritte ist ausgeschlossen.
-* **Kommerzielle / Dual-Lizenzierung:** Als ursprünglicher Erfinder und Urheberrechtsinhaber behält sich **Linus Baumberger (`@lb2002`)** das Recht vor, OpenStitch Studio (oder Teile davon) zusätzlich unter kommerziellen / OEM-Lizenzen anzubieten. Für kommerzielle Anfragen oder Partnerschaften siehe [LICENSE](./LICENSE).
+* **Open-source copyleft:** released under the **[GNU AGPL-3.0-or-later](./LICENSE)**. Anyone may use, study, improve and share the software for free; derivative works and network/cloud services must stay open under the same licence.
+* **Commercial / dual licensing:** as original author and copyright holder, **Linus Baumberger (`@lb2002`)** reserves the right to additionally offer OpenStitch Studio under commercial / OEM licences. See [LICENSE](./LICENSE).
