@@ -333,3 +333,16 @@ def test_satin_underlay_styles():
     dct = SatinObject(t, geom=Point(0, 0).buffer(2)).to_dict()
     dct.pop("underlay_style")
     assert object_from_dict(dct).underlay_style == "auto"
+
+
+def test_jef_export_keeps_trims(tmp_path):
+    import pyembroidery as pe
+    d = Design()
+    t = Thread((200, 30, 30), "Rot")
+    for x in (-30, 0, 30):  # drei getrennte Flächen gleicher Farbe → Trims dazwischen
+        d.objects.append(FillObject(t, geom=Point(x, 0).buffer(6)))
+    plan = d.build_plan()
+    path = str(tmp_path / "t.jef")
+    export_plan(plan, path)
+    raw = open(path, "rb").read()
+    assert raw.count(b"\x80\x02\x00\x00\x80\x02\x00\x00\x80\x02\x00\x00") >= plan.trim_count - 1

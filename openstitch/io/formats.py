@@ -62,7 +62,10 @@ def export_plan(plan: StitchPlan, path: str, **kw) -> None:
             write_exp(plan, f, **kw)
         return
     pat = plan_to_pattern(plan)
-    pe.write(pat, path)
+    # pyembroidery lässt Trims im JEF-Writer standardmässig weg → Janome würde keinen Faden schneiden.
+    # Mit trims=True werden sie als 3 Null-Sprünge geschrieben (Janome-Konvention).
+    settings = {"trims": True} if ext == "jef" else None
+    pe.write(pat, path, settings)
 
 
 def import_file(path: str) -> Design:
