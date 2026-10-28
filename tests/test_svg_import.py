@@ -66,28 +66,33 @@ def test_arc_circle_area(tmp_path):
     assert Polygon(subs[0][0]).area == pytest.approx(math.pi * 100, rel=0.03)
 
 
+def _flat(pts):
+    """Punktliste → flache Zahlenliste (pytest.approx unterstützt vor 9.x keine verschachtelten Tupel)."""
+    return [v for p in pts for v in p]
+
+
 def test_smooth_curves_s_and_t():
     s = _parse_svg_path_d("M0 0 C0 20 20 20 20 0 S40 -20 40 0")
     c = _parse_svg_path_d("M0 0 C0 20 20 20 20 0 C20 -20 40 -20 40 0")
-    assert s[0][0] == pytest.approx(c[0][0])
+    assert _flat(s[0][0]) == pytest.approx(_flat(c[0][0]))
     t = _parse_svg_path_d("M0 0 Q10 20 20 0 T40 0 t20 0")
     q = _parse_svg_path_d("M0 0 Q10 20 20 0 Q30 -20 40 0 Q50 20 60 0")
-    assert t[0][0] == pytest.approx(q[0][0])
+    assert _flat(t[0][0]) == pytest.approx(_flat(q[0][0]))
     # S ohne vorheriges C: erster Kontrollpunkt = aktueller Punkt
     s2 = _parse_svg_path_d("M0 0 S10 10 20 0")
     c2 = _parse_svg_path_d("M0 0 C0 0 10 10 20 0")
-    assert s2[0][0] == pytest.approx(c2[0][0])
+    assert _flat(s2[0][0]) == pytest.approx(_flat(c2[0][0]))
 
 
 def test_path_number_syntax_and_unknown_command():
     (pts, closed), = _parse_svg_path_d("M1.5.5L-1-2 3e1,0z")
-    assert closed and pts == pytest.approx([(1.5, 0.5), (-1, -2), (30, 0)])
+    assert closed and _flat(pts) == pytest.approx([1.5, 0.5, -1, -2, 30, 0])
     # implizit wiederholte Koordinaten bei allen Befehlen
     (pts, _), = _parse_svg_path_d("m0 0 10 0 0 10 h5 5 v5 5")
-    assert pts == pytest.approx([(0, 0), (10, 0), (10, 10), (15, 10), (20, 10), (20, 15), (20, 20)])
+    assert _flat(pts) == pytest.approx(_flat([(0, 0), (10, 0), (10, 10), (15, 10), (20, 10), (20, 15), (20, 20)]))
     # unbekannter Befehl beendet den Pfad statt den Token-Strom zu verschieben
     (pts, _), = _parse_svg_path_d("M0 0 L10 0 X 99 99 L5 5")
-    assert pts == pytest.approx([(0, 0), (10, 0)])
+    assert _flat(pts) == pytest.approx([0, 0, 10, 0])
 
 
 def test_fill_none_with_stroke_run_and_satin(tmp_path):
