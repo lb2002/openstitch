@@ -202,6 +202,12 @@ def key_for(german_text: str) -> str | None:
 _TABLE.update({
     "status_computing": ("Stiche werden berechnet …", "Computing stitches …", "Calcul des points …",
                          "Calculando puntadas …"),
+    "dlg_unsaved_title": ("Ungespeicherte Änderungen", "Unsaved changes", "Modifications non enregistrées",
+                          "Cambios sin guardar"),
+    "dlg_unsaved_text": ("Das aktuelle Design hat ungespeicherte Änderungen. Jetzt speichern?",
+                         "The current design has unsaved changes. Save them now?",
+                         "Le motif actuel contient des modifications non enregistrées. Les enregistrer ?",
+                         "El diseño actual tiene cambios sin guardar. ¿Guardarlos ahora?"),
     "status_plan_error": ("Fehler bei der Stichberechnung", "Stitch generation failed",
                           "Erreur lors du calcul des points", "Error al calcular las puntadas"),
 })

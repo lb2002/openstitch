@@ -232,6 +232,7 @@ class MainWindow(QMainWindow):
         self._planner = PlanBuilder(self)
         self._planner.finished.connect(self._on_plan_finished)
         self._applied_gen = 0
+        self._dirty = False
         central = QWidget(self)
         c_lay = QVBoxLayout(central)
         c_lay.setContentsMargins(0, 0, 0, 0)
@@ -771,6 +772,9 @@ class MainWindow(QMainWindow):
         if reset_undo:
             self._undo_stack.clear()
             self._redo_stack.clear()
+            self._dirty = False
+        else:
+            self._dirty = True
         self._last_edit_key = None
         self._sync_hoop_machine_ui()
         self.rebuild_plan(prebuilt_plan=prebuilt_plan)
@@ -798,6 +802,7 @@ class MainWindow(QMainWindow):
                 self.cmb_machine.blockSignals(False)
 
     def _snapshot(self, desc: str):
+        self._dirty = True
         self._last_edit_key = None
         self._undo_stack.append((desc, [o.snapshot() for o in self.canvas.design.objects]))
         if len(self._undo_stack) > 30:
@@ -1099,7 +1104,27 @@ class MainWindow(QMainWindow):
         self.canvas.update()
 
     def _on_design_modified(self, desc: str):
+        self._dirty = True
         self.rebuild_plan()
+
+    def _confirm_discard(self) -> bool:
+        """Fragt nach, bevor ungespeicherte Änderungen verworfen werden. True = weitermachen."""
+        if not self._dirty or not self.isVisible():
+            return True
+        ans = QMessageBox.question(
+            self, tr("dlg_unsaved_title"), tr("dlg_unsaved_text"),
+            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Save,
+        )
+        if ans == QMessageBox.Save:
+            return self.action_save_project()
+        return ans == QMessageBox.Discard
+
+    def closeEvent(self, event):
+        if not self._confirm_discard():
+            event.ignore()
+            return
+        self._planner.wait(5.0)
+        super().closeEvent(event)
 
     def _on_cursor_moved(self, x: float, y: float):
         self.lbl_cursor.setText(f"X: {x:6.1f} mm,  Y: {y:6.1f} mm")
@@ -1208,6 +1233,8 @@ class MainWindow(QMainWindow):
             return
         self._remember_dir(path)
         ext = os.path.splitext(path)[1].lower().lstrip(".")
+        if (ext == "ostitch" or ext == "svg" or ext in READ_EXT) and not self._confirm_discard():
+            return
         if ext == "ostitch":
             try:
                 self.set_design(load_project(path), reset_undo=True)
@@ -1234,9 +1261,13 @@ class MainWindow(QMainWindow):
 
     # -------------------------------------------------------- Datei-Aktionen
     def action_new(self):
+        if not self._confirm_discard():
+            return
         self.set_design(Design(name="Neues_Design"), reset_undo=True)
 
     def action_open_project(self):
+        if not self._confirm_discard():
+            return
         path = self._ask_open_file("Projekt öffnen", "OpenStitch-Projekt (*.ostitch);;Alle Dateien (*.*)")
         if not path:
             return
@@ -1251,15 +1282,19 @@ class MainWindow(QMainWindow):
             "Projekt speichern", f"{self.canvas.design.name}.ostitch", "OpenStitch-Projekt (*.ostitch)"
         )
         if not path:
-            return
+            return False
         try:
             save_project(self.canvas.design, path)
         except Exception as exc:
             QMessageBox.critical(self, "Speicherfehler", str(exc))
-            return
+            return False
+        self._dirty = False
         self.status.showMessage(f"Gespeichert: {path}", 5000)
+        return True
 
     def action_import_embroidery(self):
+        if not self._confirm_discard():
+            return
         exts = " ".join(f"*.{e} *.{e.upper()}" for e in READ_EXT)
         path = self._ask_open_file("Stickdatei importieren", f"Stickdateien ({exts});;Alle Dateien (*.*)")
         if not path:
@@ -1272,6 +1307,8 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Import-Fehler", str(exc))
 
     def action_import_svg(self):
+        if not self._confirm_discard():
+            return
         path = self._ask_open_file("SVG-Vektorgrafik importieren", "SVG-Vektordatei (*.svg);;Alle Dateien (*.*)")
         if not path:
             return
@@ -1560,7 +1597,7 @@ class MainWindow(QMainWindow):
         self.slider_sim.setValue(cur)
         self.slider_sim.blockSignals(False)
         self.lbl_sim.setText(f"{cur:,} / {total:,}".replace(",", "'"))
-        self.canvas.invalidate_render_cache()
+        self.canvas.update()  # sim_limit ist Teil des Cache-Schlüssels
 
     def _on_sim_slider(self, val: int):
         total = self.canvas.plan.stitch_count
@@ -1570,10 +1607,10 @@ class MainWindow(QMainWindow):
         else:
             self.canvas.sim_limit = val
             self.lbl_sim.setText(f"{val:,} / {total:,}".replace(",", "'"))
-        self.canvas.invalidate_render_cache()
+        self.canvas.update()  # sim_limit ist Teil des Cache-Schlüssels
 
     def _reset_sim(self):
         self.btn_play.setChecked(False)
         self.canvas.sim_limit = None
         self.slider_sim.setValue(self.canvas.plan.stitch_count)
-        self.canvas.invalidate_render_cache()
+        self.canvas.update()  # sim_limit ist Teil des Cache-Schlüssels

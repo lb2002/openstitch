@@ -111,6 +111,21 @@ class StitchCanvas(QWidget):
         key = (self._plan_version, q_ppm, self.realistic, self.show_jumps, self.sim_limit)
         if self._cache_key == key and self._cache_img is not None:
             return
+        # Simulator läuft vorwärts: nur die neuen Stiche auf das vorhandene Bild zeichnen,
+        # statt bei jedem Timer-Tick den ganzen Plan neu zu rendern
+        old = self._cache_key
+        if (old is not None and self._cache_img is not None and old[:4] == key[:4]
+                and old[4] is not None and (key[4] is None or key[4] > old[4])):
+            sp = QPainter(self._cache_img)
+            sp.scale(self._cache_px_per_mm, self._cache_px_per_mm)
+            sp.translate(-self._cache_origin_mm[0], -self._cache_origin_mm[1])
+            pt = draw_plan(sp, self.plan, upto=key[4], realistic=self.realistic, show_jumps=self.show_jumps,
+                           px_per_mm=self._cache_px_per_mm, start=old[4])
+            sp.end()
+            if pt is not None:
+                self._last_sim_pt = pt
+            self._cache_key = key
+            return
         x0, y0, x1, y1 = self.plan.bounds()
         pad = 6.0
         w_mm = max(10.0, (x1 - x0) + 2 * pad)
@@ -138,21 +153,24 @@ class StitchCanvas(QWidget):
         self._cache_key = key
 
     def _draw_heatmap(self, p: QPainter):
-        counts: dict[tuple[int, int], int] = defaultdict(int)
-        for b in self.plan.blocks:
-            for s in b.stitches:
-                if s.cmd == Cmd.STITCH:
-                    counts[(int(math.floor(s.x)), int(math.floor(s.y)))] += 1
+        # Zellzählung nur einmal pro Plan-Version, nicht bei jedem Repaint (Mausbewegung!)
+        if getattr(self, "_heat_key", None) != self._plan_version:
+            counts: dict[tuple[int, int], int] = defaultdict(int)
+            for b in self.plan.blocks:
+                for s in b.stitches:
+                    if s.cmd == Cmd.STITCH:
+                        counts[(int(math.floor(s.x)), int(math.floor(s.y)))] += 1
+            buckets: list[list[QRectF]] = [[], [], []]
+            for (gx, gy), c in counts.items():
+                buckets[0 if c <= 6 else 1 if c <= 12 else 2].append(QRectF(gx, gy, 1.0, 1.0))
+            self._heat_rects = buckets
+            self._heat_key = self._plan_version
         p.setPen(Qt.NoPen)
-        for (gx, gy), c in counts.items():
-            if c <= 6:
-                col = QColor(40, 200, 90, 95)
-            elif c <= 12:
-                col = QColor(255, 195, 0, 145)
-            else:
-                col = QColor(255, 35, 35, 190)
-            p.setBrush(col)
-            p.drawRect(QRectF(gx, gy, 1.0, 1.0))
+        for col, rects in zip((QColor(40, 200, 90, 95), QColor(255, 195, 0, 145), QColor(255, 35, 35, 190)),
+                              self._heat_rects):
+            if rects:
+                p.setBrush(col)
+                p.drawRects(rects)
 
     # ----------------------------------------------------------- Zeichnen
     def paintEvent(self, event):

@@ -46,32 +46,50 @@ def _np_to_pixmap(rgb: np.ndarray, max_side: int = 360) -> QPixmap:
     return QPixmap.fromImage(qimg).scaled(max_side, max_side, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
 
+class _Cancelled(Exception):
+    pass
+
+
 class _DigitizeWorker(QThread):
     progress = Signal(str, int)
     finished_ok = Signal(object, object)   # AutoResult, StitchPlan
     failed = Signal(str)
 
-    def __init__(self, rgba: np.ndarray, params: AutoParams):
+    def __init__(self, rgba: np.ndarray, params: AutoParams, hoop=None):
         super().__init__()
         self.rgba = rgba
         self.params = params
+        self.hoop = hoop
+        self.cancelled = False
+
+    def _tick(self, msg: str, val: int):
+        # Abbruch wird an jedem Fortschrittspunkt geprüft (Bildschritte bzw. je Objekt)
+        if self.cancelled:
+            raise _Cancelled()
+        self.progress.emit(msg, val)
 
     def run(self):
         try:
             res = auto_digitize(
                 self.rgba,
                 self.params,
-                progress=lambda msg, v: self.progress.emit(msg, int(v * 0.55)),
+                progress=lambda msg, v: self._tick(msg, int(v * 0.55)),
             )
-            total = max(1, len(res.design.objects))
+            if self.hoop is not None:
+                # Plan gleich für den Rahmen des Hauptfensters rechnen
+                res.design.hoop = self.hoop
             plan = res.design.build_plan(
-                progress=lambda i, n: self.progress.emit(
+                progress=lambda i, n: self._tick(
                     f"Stiche berechnen ({i}/{n}) …", 55 + int(45 * i / max(1, n))
                 )
             )
-            self.finished_ok.emit(res, plan)
+            if not self.cancelled:
+                self.finished_ok.emit(res, plan)
+        except _Cancelled:
+            pass
         except Exception as exc:
-            self.failed.emit(str(exc))
+            if not self.cancelled:
+                self.failed.emit(str(exc))
 
 
 # ===========================================================================
@@ -214,7 +232,9 @@ class AutoDigitizeDialog(QDialog):
             use_palette=self.cb_palette.isChecked(),
         )
         self.btn_ok.setEnabled(False)
-        self._worker = _DigitizeWorker(self.rgba, p)
+        parent = self.parent()
+        hoop = parent.canvas.design.hoop if parent is not None and hasattr(parent, "canvas") else None
+        self._worker = _DigitizeWorker(self.rgba, p, hoop)
         self._worker.progress.connect(self._on_prog)
         self._worker.finished_ok.connect(self._on_done)
         self._worker.failed.connect(self._on_fail)
@@ -233,6 +253,20 @@ class AutoDigitizeDialog(QDialog):
     def _on_fail(self, err: str):
         self.btn_ok.setEnabled(True)
         QMessageBox.critical(self, "Fehler beim Digitalisieren", err)
+
+    def reject(self):
+        # Abbrechen/Esc/Schliessen stoppt auch die laufende Berechnung
+        w = self._worker
+        if w is not None and w.isRunning():
+            w.cancelled = True
+            for sig in (w.progress, w.finished_ok, w.failed):
+                try:
+                    sig.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+            w.wait(15000)
+        self._worker = None
+        super().reject()
 
 
 # ===========================================================================
