@@ -293,3 +293,21 @@ def test_plan_is_built_in_background():
     d = Design(objects=[o.snapshot() for o in win.canvas.design.objects], hoop=win.canvas.design.hoop)
     assert final.stitch_count == d.build_plan().stitch_count
     win.close()
+
+
+def test_density_guard_keeps_fill_turn_points():
+    """Reihenwende-Punkte am Rand sind keine Mikrostiche – sonst franst die Kontur aus."""
+    import math
+    from openstitch.core.stitchplan import Cmd, Stitch
+    from openstitch.engine.density_guard import optimize_stitches_for_melco
+    zig = [Stitch(0, -1, Cmd.JUMP)]
+    for k in range(20):  # Tatami-artige Reihen im Abstand 0.4 mm
+        y = k * 0.4
+        xs = (0.0, 10.0) if k % 2 == 0 else (10.0, 0.0)
+        zig += [Stitch(xs[0], y), Stitch(5.0, y), Stitch(xs[1], y)]
+    out = optimize_stitches_for_melco(zig)
+    ends = [s for s in out if s.cmd == Cmd.STITCH and s.x in (0.0, 10.0)]
+    assert len(ends) == 40
+    # echte Mikrostiche auf gerader Strecke werden weiterhin entfernt
+    line = [Stitch(0, 0, Cmd.JUMP), Stitch(1, 0), Stitch(1.1, 0), Stitch(2, 0), Stitch(3, 0)]
+    assert len(optimize_stitches_for_melco(line)) == 4
