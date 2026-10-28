@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openstitch"
-version = "0.1.0"
+version = "0.2.0"
 description = "OpenStitch Studio — Universal Open-Source Embroidery & Digitizing Suite (DST, PES, EXP, JEF, VP3, U01)"
 readme = "README.md"
 license = {text = "AGPL-3.0-or-later"}

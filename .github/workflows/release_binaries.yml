@@ -2,6 +2,11 @@ name: Build Release Binaries (Windows & macOS M-Chip + Intel)
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach the binaries to (e.g. v0.2.0)'
+        required: true
+        default: 'v0.2.0'
   push:
     tags:
       - 'v*'
@@ -65,13 +70,14 @@ jobs:
         run: |
           pyinstaller --noconfirm --onefile --windowed --name "OpenStitch-Studio-Windows-x64" --exclude-module pytest --exclude-module tkinter --exclude-module matplotlib main.py
 
-      - name: Upload to GitHub Release v0.1.0
+      - name: Upload to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
-            gh release upload v0.1.0 "dist/${{ matrix.asset_name }}" --clobber
+            gh release upload "$RELEASE_TAG" "dist/${{ matrix.asset_name }}" --clobber
           else
-            gh release upload v0.1.0 "dist/OpenStitch-Studio-Windows-x64.exe" --clobber
+            gh release upload "$RELEASE_TAG" "dist/OpenStitch-Studio-Windows-x64.exe" --clobber
           fi
         shell: bash
