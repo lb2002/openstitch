@@ -81,6 +81,7 @@ def test_auto_digitizer_and_gui():
     assert len(exp_bytes(plan)) > 600
 
     win = MainWindow()
+    win.wait_for_plan()
     assert win.canvas.plan.stitch_count > 500
     issues = run_quality_doctor(win.canvas.design, win.canvas.plan, max_needles=10)
     assert len(issues) >= 1
@@ -101,7 +102,7 @@ def test_auto_digitizer_and_gui():
 def test_all_machine_formats_binary_verification(tmp_path):
     """Exportiert ein komplexes Design in alle wichtigen Binärformate und verifiziert sie unabhängig."""
     win = MainWindow(show_tour_on_init=False)
-    plan = win.canvas.plan
+    plan = win.wait_for_plan()
     assert plan.stitch_count > 4000
 
     for ext in ("exp", "dst", "pes", "jef", "vp3", "xxx", "u01"):
@@ -271,3 +272,24 @@ def test_single_objects_need_no_internal_trims():
         plan = d.build_plan()
         assert plan.trim_count == 1  # nur der Schlussschnitt
         assert _max_stitch_len(plan) <= d.settings.max_stitch + 1e-6
+
+
+def test_plan_is_built_in_background():
+    """Editieren blockiert nicht: der Plan wird im Hintergrund gerechnet und danach übernommen."""
+    win = MainWindow(show_tour_on_init=False)
+    win.wait_for_plan()
+    before = win.canvas.plan
+    obj = next(o for o in win.canvas.design.objects if o.kind == "fill")
+    win._snapshot("test")
+    obj.spacing = 0.8
+    win.rebuild_plan()
+    plan = win.wait_for_plan()
+    assert plan is not before and plan.stitch_count < before.stitch_count
+    # mehrere schnelle Änderungen: nur der neueste Stand wird übernommen
+    for sp in (0.5, 0.6, 0.7):
+        obj.spacing = sp
+        win.rebuild_plan()
+    final = win.wait_for_plan()
+    d = Design(objects=[o.snapshot() for o in win.canvas.design.objects], hoop=win.canvas.design.hoop)
+    assert final.stitch_count == d.build_plan().stitch_count
+    win.close()

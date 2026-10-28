@@ -50,6 +50,7 @@ from ..text import TextObject
 from .canvas import StitchCanvas
 from .dialogs import AutoDigitizeDialog, MelcoDiskDialog, PhotoStitchDialog, TextDialog
 from .onboarding import InAppTourOverlay, OnboardingTourDialog, create_openstitch_logo_design, studio_icon
+from .plan_worker import PlanBuilder
 
 STUDIO_STYLE = """
 QMainWindow, QDialog, QDockWidget, QWidget {
@@ -228,6 +229,9 @@ class MainWindow(QMainWindow):
         self._tour_overlay: InAppTourOverlay | None = None
 
         self.canvas = StitchCanvas(self)
+        self._planner = PlanBuilder(self)
+        self._planner.finished.connect(self._on_plan_finished)
+        self._applied_gen = 0
         central = QWidget(self)
         c_lay = QVBoxLayout(central)
         c_lay.setContentsMargins(0, 0, 0, 0)
@@ -801,7 +805,38 @@ class MainWindow(QMainWindow):
         self._redo_stack.clear()
 
     def rebuild_plan(self, prebuilt_plan=None, refresh_props: bool = True):
-        self.canvas.plan = prebuilt_plan if prebuilt_plan is not None else self.canvas.design.build_plan()
+        """Objektliste/Inspektor sofort aktualisieren, Stiche im Hintergrund neu berechnen."""
+        self._refresh_object_list()
+        if refresh_props:
+            self._populate_properties(self.canvas.selected)
+        if prebuilt_plan is not None:
+            # laufende Berechnungen sind damit überholt
+            self._applied_gen = self._planner.supersede()
+            self._apply_plan(prebuilt_plan)
+            return
+        self._planner.request(self.canvas.design)
+        if hasattr(self, "status"):
+            self.status.showMessage(tr("status_computing"))
+
+    def _on_plan_finished(self, gen: int, plan, err: str):
+        if gen != self._planner.generation or gen <= self._applied_gen:
+            return  # veraltet – eine neuere Berechnung läuft schon
+        self._applied_gen = gen
+        if plan is None:
+            self.status.showMessage(f"{tr('status_plan_error')}: {err}", 12000)
+            return
+        self.status.clearMessage()
+        self._apply_plan(plan)
+
+    def wait_for_plan(self):
+        """Wartet auf die laufende Berechnung (vor Export, Prüfung & in Tests)."""
+        res = self._planner.wait()
+        if res is not None:
+            self._on_plan_finished(*res)
+        return self.canvas.plan
+
+    def _apply_plan(self, plan):
+        self.canvas.plan = plan
         n = max(1, self.canvas.plan.stitch_count)
         self.slider_sim.blockSignals(True)
         self.slider_sim.setRange(0, n)
@@ -810,11 +845,8 @@ class MainWindow(QMainWindow):
             self.lbl_sim.setText(f"{n:,} / {n:,}".replace(",", "'"))
         self.slider_sim.blockSignals(False)
 
-        self._refresh_object_list()
         self._refresh_needle_list()
         self._refresh_stats()
-        if refresh_props:
-            self._populate_properties(self.canvas.selected)
         self.canvas.invalidate_render_cache()
 
     def _refresh_stats(self):
@@ -1268,6 +1300,7 @@ class MainWindow(QMainWindow):
         self.rebuild_plan()
 
     def action_quality_doctor(self):
+        self.wait_for_plan()
         issues = run_quality_doctor(
             self.canvas.design, self.canvas.plan, max_needles=self.canvas.design.settings.needles
         )
@@ -1286,6 +1319,7 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
+        self.wait_for_plan()
         try:
             export_plan(self.canvas.plan, path)
             ext = os.path.splitext(path)[1].lower().lstrip(".")
@@ -1312,6 +1346,7 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
+        self.wait_for_plan()
         try:
             export_worksheet_pdf(self.canvas.design, self.canvas.plan, path)
         except Exception as exc:
@@ -1325,6 +1360,7 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
+        self.wait_for_plan()
         if not render_image(self.canvas.plan, px_per_mm=10.0).save(path):
             QMessageBox.critical(self, "PNG-Fehler", f"Bild konnte nicht gespeichert werden:\n{path}")
 
@@ -1412,6 +1448,7 @@ class MainWindow(QMainWindow):
             self.rebuild_plan()
 
     def action_melco_disk(self):
+        self.wait_for_plan()
         dlg = MelcoDiskDialog(self.canvas.plan, self.canvas.design.name, self)
         dlg.exec()
 

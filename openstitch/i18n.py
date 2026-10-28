@@ -199,5 +199,13 @@ def key_for(german_text: str) -> str | None:
     return None
 
 
+_TABLE.update({
+    "status_computing": ("Stiche werden berechnet …", "Computing stitches …", "Calcul des points …",
+                         "Calculando puntadas …"),
+    "status_plan_error": ("Fehler bei der Stichberechnung", "Stitch generation failed",
+                          "Erreur lors du calcul des points", "Error al calcular las puntadas"),
+})
+
+
 def tr_all(key: str) -> list[str]:
     return list(_TABLE.get(key, (key,) * 4))
