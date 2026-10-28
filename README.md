@@ -67,8 +67,10 @@
 
 ## 🚀 Quickstart & Installation
 
-### Option A: 1-Klick Windows Portable Download (ohne Python-Installation!)
-Lade dir einfach das fertige Paket **`OpenStitch-Studio-v0.1.0-Windows-x64.zip`** von den **[GitHub Releases (v0.1.0)](https://github.com/lb2002/openstitch/releases/tag/v0.1.0)** herunter, entpacke es und starte **`OpenStitch-Studio.exe`** per Doppelklick!
+### Option A: 1-Klick Direkt-Download (ohne Python-Installation!)
+Lade dir auf der **[GitHub Release-Seite (v0.1.0)](https://github.com/lb2002/openstitch/releases/tag/v0.1.0)** direkt die ausführbare Datei herunter:
+* 🪟 **Windows (64-Bit):** **[`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/download/v0.1.0/OpenStitch-Studio-Windows-x64.exe)** *(Einzeldatei – einfach herunterladen & doppelklicken, kein Entpacken nötig!)*
+* 🍏 **macOS (Apple Silicon M1/M2/M3/M4 & Intel):** Lade das `.app`-Bundle aus den Releases oder starte direkt per Doppelklick auf `start_macos.command`.
 
 ---
 
