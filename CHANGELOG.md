@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (v0.3.0)
+## v0.3.0 (2026-10-28)
 
 ### New
 - **OpenStitch Micro: an embroidery font for small lettering from 2.5 mm.** Single-stroke glyphs are stitched as a triple run below 5.5 mm and as narrow satin columns above, the way commercial small-text fonts work. Outline fonts converted from TrueType fill in below about 4.5 mm. It covers A–Z, a–z, 0–9, punctuation and German/French/Spanish accents. Pick it in the text dialog; it is listed first.

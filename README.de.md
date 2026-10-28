@@ -74,10 +74,10 @@
 ## 🚀 Quickstart & Installation
 
 ### Option A: 1-Klick Direkt-Download (ohne Python-Installation!)
-Lade dir auf der **[GitHub Release-Seite (v0.2.0)](https://github.com/lb2002/openstitch/releases/tag/v0.2.0)** direkt die fertige Anwendung für dein System herunter:
-* 🪟 **Windows (64-Bit Einzeldatei):** **[`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/download/v0.2.0/OpenStitch-Studio-Windows-x64.exe)** *(einfach herunterladen & doppelklicken, kein Entpacken nötig!)*
-* 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** **[`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.2.0/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)** *(`OpenStitch Studio.app`)*
-* 🍎 **macOS (Intel x64):** **[`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/download/v0.2.0/OpenStitch-Studio-macOS-Intel-x64.zip)** *(`OpenStitch Studio.app`)*
+Lade dir auf der **[GitHub Release-Seite (latest)](https://github.com/lb2002/openstitch/releases/latest)** direkt die fertige Anwendung für dein System herunter:
+* 🪟 **Windows (64-Bit Einzeldatei):** **[`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Windows-x64.exe)** *(einfach herunterladen & doppelklicken, kein Entpacken nötig!)*
+* 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** **[`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)** *(`OpenStitch Studio.app`)*
+* 🍎 **macOS (Intel x64):** **[`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip)** *(`OpenStitch Studio.app`)*
 
 ---
 
