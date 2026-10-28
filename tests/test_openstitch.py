@@ -358,3 +358,11 @@ def test_color_sort_respects_overlaps():
     # c liegt jetzt auf b → darf nicht unter b rutschen
     c2 = FillObject(red, geom=Point(4, 0).buffer(5))
     assert [o.id for o in color_sorted([a, b, c2])] == [a.id, b.id, c2.id]
+
+
+def test_quality_doctor_round_hoop_uses_real_radius():
+    from openstitch.core.design import HOOPS
+    d = Design(objects=[FillObject(Thread((1, 1, 1)), geom=Point(0, 0).buffer(64))])
+    d.hoop = HOOPS[2]  # rund 15 cm → Radius 75 mm; Kreis r=64 passt (Bounding-Box-Ecke wäre 90 mm)
+    issues = run_quality_doctor(d, d.build_plan(), max_needles=10)
+    assert len(issues) == 1 and issues[0].startswith("✅")

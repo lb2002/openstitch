@@ -226,6 +226,65 @@ _TABLE.update({
 })
 
 
+# Qualitäts-Doktor
+_TABLE.update({
+    "doc_empty": ("Das Design enthält noch keine Stiche.", "The design has no stitches yet.",
+                  "Le motif ne contient encore aucun point.", "El diseño aún no tiene puntadas."),
+    "doc_hoop_round": (
+        "⚠ RAHMEN-KOLLISIONSGEFAHR: Das Motiv (Radius {r} mm) reicht an den Rand des Rundrahmens ({hoop}, Radius {hr} mm). "
+        "Wähle einen grösseren Rahmen oder zentriere/verkleinere das Motiv.",
+        "⚠ HOOP COLLISION RISK: the design (radius {r} mm) reaches the edge of the round hoop ({hoop}, radius {hr} mm). "
+        "Pick a larger hoop or centre/shrink the design.",
+        "⚠ RISQUE DE COLLISION AVEC LE CADRE : le motif (rayon {r} mm) atteint le bord du cadre rond ({hoop}, rayon {hr} mm). "
+        "Choisissez un cadre plus grand ou centrez/réduisez le motif.",
+        "⚠ RIESGO DE CHOQUE CON EL BASTIDOR: el diseño (radio {r} mm) llega al borde del bastidor redondo ({hoop}, radio {hr} mm). "
+        "Elige un bastidor mayor o centra/reduce el diseño."),
+    "doc_hoop_rect": (
+        "⚠ RAHMEN-KOLLISIONSGEFAHR: Das Motiv ({w}×{h} mm) überschreitet das sichere Stickfeld des Rahmens ({hw}×{hh} mm).",
+        "⚠ HOOP COLLISION RISK: the design ({w}×{h} mm) exceeds the hoop's safe sewing field ({hw}×{hh} mm).",
+        "⚠ RISQUE DE COLLISION AVEC LE CADRE : le motif ({w}×{h} mm) dépasse la zone de broderie sûre du cadre ({hw}×{hh} mm).",
+        "⚠ RIESGO DE CHOQUE CON EL BASTIDOR: el diseño ({w}×{h} mm) supera el área segura del bastidor ({hw}×{hh} mm)."),
+    "doc_colors": (
+        "⚠ ZU VIELE FARBEN: Das Design verwendet {n} Garnfarben, die Maschine hat {needles} Nadeln. "
+        "Reduziere die Farben oder plane einen manuellen Garnwechsel ein.",
+        "⚠ TOO MANY COLOURS: the design uses {n} thread colours but the machine has {needles} needles. "
+        "Reduce colours or plan a manual thread change.",
+        "⚠ TROP DE COULEURS : le motif utilise {n} couleurs de fil, la machine a {needles} aiguilles. "
+        "Réduisez les couleurs ou prévoyez un changement de fil manuel.",
+        "⚠ DEMASIADOS COLORES: el diseño usa {n} colores de hilo y la máquina tiene {needles} agujas. "
+        "Reduce los colores o planifica un cambio de hilo manual."),
+    "doc_small_text": (
+        "⚠ KLEINE SCHRIFT ({name}, {h} mm): Umriss-Schriften unter 4.5 mm laufen auf Stoff oft zu. "
+        "Tipp: Für kleine Schrift die Schriftart „OpenStitch Micro“ verwenden.",
+        "⚠ SMALL LETTERING ({name}, {h} mm): outline fonts below 4.5 mm tend to fill in on fabric. "
+        "Tip: use the “OpenStitch Micro” font for small lettering.",
+        "⚠ PETIT TEXTE ({name}, {h} mm) : sous 4,5 mm, les polices à contour se bouchent souvent sur le tissu. "
+        "Astuce : utilisez la police « OpenStitch Micro » pour les petits textes.",
+        "⚠ TEXTO PEQUEÑO ({name}, {h} mm): las fuentes de contorno por debajo de 4,5 mm suelen cerrarse en la tela. "
+        "Consejo: usa la fuente «OpenStitch Micro» para texto pequeño."),
+    "doc_satin_density": (
+        "⚠ HOHE SATIN-DICHTE ({name}, {sp} mm): Dichte unter 0.28 mm kann zu Fadenbruch führen (empfohlen: 0.36–0.42 mm).",
+        "⚠ HIGH SATIN DENSITY ({name}, {sp} mm): spacing below 0.28 mm can break threads (recommended: 0.36–0.42 mm).",
+        "⚠ DENSITÉ SATIN ÉLEVÉE ({name}, {sp} mm) : un espacement sous 0,28 mm peut casser le fil (conseillé : 0,36–0,42 mm).",
+        "⚠ DENSIDAD DE SATÉN ALTA ({name}, {sp} mm): un espaciado inferior a 0,28 mm puede romper el hilo "
+        "(recomendado: 0,36–0,42 mm)."),
+    "doc_density": (
+        "⚠ DICHTE-SPITZEN: An {n} Stellen (1×1 mm) liegen mehr als 14 Stiche übereinander "
+        "(Strg+H zeigt die Heatmap).",
+        "⚠ DENSITY HOT SPOTS: {n} places (1×1 mm) have more than 14 stitches on top of each other "
+        "(Ctrl+H shows the heatmap).",
+        "⚠ PICS DE DENSITÉ : {n} zones (1×1 mm) comptent plus de 14 points superposés "
+        "(Ctrl+H affiche la carte de densité).",
+        "⚠ PICOS DE DENSIDAD: en {n} puntos (1×1 mm) hay más de 14 puntadas superpuestas "
+        "(Ctrl+H muestra el mapa de calor)."),
+    "doc_ok": (
+        "✅ Keine Probleme gefunden ({st} Stiche, {n} von {needles} Nadeln, sicher im Rahmen {hoop}).",
+        "✅ No problems found ({st} stitches, {n} of {needles} needles, safely inside {hoop}).",
+        "✅ Aucun problème détecté ({st} points, {n} aiguilles sur {needles}, bien dans le cadre {hoop}).",
+        "✅ No se encontraron problemas ({st} puntadas, {n} de {needles} agujas, dentro del bastidor {hoop})."),
+})
+
+
 def tr_all(key: str) -> list[str]:
     return list(_TABLE.get(key, (key,) * 4))
 

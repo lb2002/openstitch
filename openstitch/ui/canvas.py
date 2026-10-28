@@ -22,7 +22,7 @@ from PySide6.QtWidgets import QWidget
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 from shapely.ops import unary_union
 
-from ..core.design import Design, EmbObject, FillObject, RunObject, SatinObject, compose
+from ..core.design import ColumnObject, Design, EmbObject, FillObject, RunObject, SatinObject, compose, m_scale
 from ..core.stitchplan import Cmd, StitchPlan, Thread
 from ..render import draw_plan
 
@@ -509,7 +509,7 @@ class StitchCanvas(QWidget):
 
     def _get_editable_nodes(self, obj: EmbObject) -> list[tuple[float, float]]:
         # Nur Objekte mit eigener Vektor-Geometrie (Text/Stiche werden anders erzeugt)
-        if obj.kind not in ("fill", "satin", "run"):
+        if obj.kind not in ("fill", "satin", "run", "column"):
             return []
         g = obj.world_geom()
         if g is None or g.is_empty:
@@ -551,6 +551,8 @@ class StitchCanvas(QWidget):
             return
         lns = lines_of(g)
         if lns:
+            if obj.kind == "column":
+                obj.width *= m_scale(obj.transform)  # Skalierung in die Breite übernehmen
             rest = lns[1:]
             obj.geom = MultiLineString([LineString(coords)] + rest) if rest else LineString(coords)
             obj.transform = IDENTITY
@@ -602,7 +604,8 @@ class StitchCanvas(QWidget):
             line = LineString(pts)
             if line.length >= 1.0:
                 self.about_to_modify.emit("Satin zeichnen")
-                obj = SatinObject(self.active_thread, name="Freihand-Satin", geom=line.buffer(1.6, cap_style=2))
+                # Gezeichnete Linie = Säulen-Mittellinie; Stiche stehen senkrecht dazu
+                obj = ColumnObject(self.active_thread, name="Satinsäule", geom=line, width=3.2)
                 self.design.objects.append(obj)
                 self.selected = obj
                 self.selection_changed.emit(obj)

@@ -1050,7 +1050,10 @@ class MainWindow(QMainWindow):
     def action_auto_select_hoop(self):
         x0, y0, x1, y1 = self.canvas.design.bounds()
         w, h = x1 - x0, y1 - y0
-        r_need = max(math.hypot(x0, y0), math.hypot(x1, y1), math.hypot(x0, y1), math.hypot(x1, y0))
+        # Rundrahmen: echter Radius der Nadelpositionen (Bounding-Box-Ecken überschätzen runde Motive)
+        plan = self.wait_for_plan()
+        r_need = max((math.hypot(s.x, s.y) for b in plan.blocks for s in b.stitches if s.cmd in (0, 1)),
+                     default=max(math.hypot(x0, y0), math.hypot(x1, y1), math.hypot(x0, y1), math.hypot(x1, y0)))
         for idx, hp in enumerate(HOOPS):
             mg = hp.margin_mm
             if hp.round and r_need <= (hp.width / 2.0 - mg):
