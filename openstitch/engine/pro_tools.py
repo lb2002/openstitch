@@ -491,6 +491,9 @@ _CAPS = {"butt": 2, "square": 3, "round": 1}
 _JOINS = {"miter": 2, "miter-clip": 2, "arcs": 1, "bevel": 3, "round": 1}
 
 
+_SVG_MAX_ELEMENTS = 50_000
+
+
 def import_svg(path: str, target_width_mm: float | None = 95.0) -> Design:
     """Importiert eine SVG-Vektordatei direkt als editierbare Stick-Objekte (Satin/Tatami/Run).
     target_width_mm=None: echte physische Grösse aus width/height/viewBox (falls angegeben, sonst 95 mm)."""
@@ -538,10 +541,16 @@ def import_svg(path: str, target_width_mm: float | None = 95.0) -> Design:
                           _CAPS.get(style.get("stroke-linecap", "butt"), 2),
                           _JOINS.get(style.get("stroke-linejoin", "miter"), 2)))
 
+    # Budget gegen „Billion Laughs“-SVGs: verschachtelte <use> können sich exponentiell vervielfachen
+    visited = [0]
+
     def walk(el, ctm, inherited, opacity, active, as_group=False):
         tag = _local(el.tag)
         if not tag or (tag in _SVG_SKIP and not as_group) or len(active) > 32:
             return
+        visited[0] += 1
+        if visited[0] > _SVG_MAX_ELEMENTS:
+            raise ValueError("SVG ist zu komplex (zu viele verschachtelte Elemente / <use>-Kopien).")
         st = _svg_style(el)
         if st.get("display", "").lower() == "none":
             return

@@ -209,3 +209,22 @@ def test_physical_size_and_document_order(tmp_path):
     assert _wh(unary_union(_areas(import_svg(p2, target_width_mm=None)))) == pytest.approx((25.4, 12.7), rel=1e-6)
     p3 = _svg(tmp_path, '<rect width="2" height="1"/>', root_attrs='width="2in" height="1in" viewBox="0 0 2 1"', name="in.svg")
     assert _wh(unary_union(_areas(import_svg(p3, target_width_mm=None)))) == pytest.approx((50.8, 25.4), rel=1e-6)
+
+
+def test_use_bomb_is_rejected(tmp_path):
+    """Exponentiell verschachtelte <use>-Referenzen dürfen den Import nicht aufhängen."""
+    import time
+    from openstitch.engine.pro_tools import import_svg
+    parts = ['<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">',
+             '<defs><rect id="l0" width="1" height="1"/>']
+    for i in range(1, 30):
+        parts.append(f'<g id="l{i}"><use href="#l{i-1}"/><use href="#l{i-1}" x="1"/></g>')
+    parts.append('</defs><use href="#l29"/></svg>')
+    f = tmp_path / "bomb.svg"
+    f.write_text("".join(parts), encoding="utf-8")
+    t = time.perf_counter()
+    try:
+        import_svg(str(f))
+    except ValueError:
+        pass
+    assert time.perf_counter() - t < 10
