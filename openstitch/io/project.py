@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import os
 
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QImage, QPageLayout, QPageSize, QPainter, QPdfWriter, QPen
@@ -29,12 +30,15 @@ def save_project(design: Design, path: str) -> None:
         "settings": design.settings.__dict__,
         "objects": [o.to_dict() for o in design.objects],
     }
-    with open(path, "w", encoding="utf-8") as f:
+    # Erst in eine Temp-Datei schreiben: ein Fehler mitten im Schreiben darf das alte Projekt nicht zerstören
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
 
 
 def load_project(path: str) -> Design:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8-sig") as f:
         data = json.load(f)
     h = data.get("hoop", {})
     hoop = Hoop(

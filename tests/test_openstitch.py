@@ -181,3 +181,81 @@ def test_language_switch_and_thread_catalogs():
     assert win.swatch_grid.count() >= 25
     set_lang("de")
     win.close()
+
+
+def _max_stitch_len(plan):
+    import math
+    from openstitch.core.stitchplan import Cmd
+    longest = 0.0
+    for b in plan.blocks:
+        prev = None
+        for s in b.stitches:
+            if s.cmd == Cmd.STITCH and prev is not None:
+                longest = max(longest, math.hypot(s.x - prev[0], s.y - prev[1]))
+            if s.cmd in (Cmd.STITCH, Cmd.JUMP):
+                prev = (s.x, s.y)
+    return longest
+
+
+def test_no_stray_stitches_after_trim():
+    """Nach Trim + Sprung darf die Nadel nicht von der alten Position aus weiternähen."""
+    t = Thread((200, 30, 30), "Rot")
+    for obj in (SatinObject(t, geom=LineString([(-30, 0), (30, 0)]).buffer(2.5)),
+                FillObject(t, geom=Point(0, 0).buffer(30), angle=30)):
+        d = Design()
+        d.objects.append(obj)
+        plan = d.build_plan()
+        assert plan.trim_count >= 1
+        assert _max_stitch_len(plan) <= d.settings.max_stitch + 1e-6
+
+
+def test_undo_keeps_ids_and_coalesces_spinbox_edits():
+    win = MainWindow(show_tour_on_init=False)
+    d = win.canvas.design
+    obj = next(o for o in d.objects if o.kind == "fill")
+    win.canvas.selected = obj
+    ids_before = [o.id for o in d.objects]
+    depth = len(win._undo_stack)
+    # Spinbox-Ziehen: viele valueChanged-Signale → genau ein Undo-Schritt
+    for v in (0.45, 0.46, 0.47, 0.48):
+        win._set_obj_attr(obj, "spacing", v)
+    win._set_obj_attr(obj, "spacing", 0.48)  # unverändert → kein Snapshot
+    assert len(win._undo_stack) == depth + 1
+    win.action_undo()
+    assert [o.id for o in d.objects] == ids_before
+    assert win.canvas.selected.id == obj.id
+    restored = next(o for o in d.objects if o.id == obj.id)
+    assert restored.spacing != 0.48
+    win.close()
+
+
+def test_loaded_design_syncs_hoop_combo(tmp_path):
+    from openstitch.core.design import HOOPS
+    win = MainWindow(show_tour_on_init=False)
+    d = Design(name="Jacke")
+    d.hoop = HOOPS[8]
+    d.objects.append(FillObject(Thread((10, 10, 10)), geom=Point(0, 0).buffer(10)))
+    path = str(tmp_path / "jacke.ostitch")
+    save_project(d, path)
+    win.set_design(load_project(path), reset_undo=True)
+    assert win.cmb_hoop.currentData() is win.canvas.design.hoop
+    assert win.canvas.design.hoop.mode == "jacket"
+    win.close()
+
+
+def test_fit_to_hoop_keeps_text_scale():
+    win = MainWindow(show_tour_on_init=False)
+    t = TextObject(Thread((0, 0, 0)), text="AB", height=10.0)
+    t.transform = (2.0, 0.0, 0.0, 2.0, 0.0, 0.0)  # per Griff auf 200 % gezogen
+    win.set_design(Design(objects=[t]), reset_undo=True)
+    from openstitch.core.design import m_scale
+    h_before = t.height
+    w_before = t.bounds()[2] - t.bounds()[0]
+    win.action_fit_to_hoop()
+    obj = win.canvas.design.objects[0]
+    s = obj.height / h_before
+    # Der Einpass-Faktor landet in height, die per Griff gezogenen 200 % bleiben im Transform
+    assert abs(m_scale(obj.transform) - 2.0) < 1e-6
+    w_after = obj.bounds()[2] - obj.bounds()[0]
+    assert abs(w_after - w_before * s) < 0.05 * w_after
+    win.close()

@@ -102,6 +102,10 @@ class EmbObject:
         c.id = _new_id()
         return c
 
+    def snapshot(self):
+        """Kopie mit gleicher id (für Undo/Redo) – so bleibt der Stich-Cache gültig."""
+        return copy.deepcopy(self)
+
 
 @dataclass
 class FillObject(EmbObject):
@@ -399,6 +403,10 @@ class Design:
         block: ColorBlock | None = None
         s = self.settings
         vis = [o for o in self.objects if o.visible]
+        # Cache-Einträge gelöschter/ersetzter Objekte verwerfen (sonst wächst er mit jedem Undo)
+        live = {o.id for o in self.objects}
+        for k in [k for k in self._cache if k[0] not in live]:
+            del self._cache[k]
         for i, obj in enumerate(vis):
             if progress:
                 progress(i, len(vis))
@@ -430,14 +438,14 @@ class Design:
     def _connect(self, block: ColorBlock, cur: Pt | None, run: list[Pt]) -> Pt:
         s = self.settings
         st = block.stitches
+        joined = cur is not None and dist(cur, run[0]) <= s.min_trim
         if cur is None:
             st.append(Stitch(run[0][0], run[0][1], Cmd.JUMP))
             if s.tie_in:
                 for p in tie_stitches(run[0], run[1] if len(run) > 1 else None)[1:]:
                     st.append(Stitch(p[0], p[1]))
         else:
-            d = dist(cur, run[0])
-            if d <= s.min_trim:
+            if joined:
                 pass  # direkt weitersticken
             else:
                 if s.tie_off and len(st) > 2:
@@ -449,8 +457,9 @@ class Design:
                 if s.tie_in:
                     for p in tie_stitches(run[0], run[1] if len(run) > 1 else None)[1:]:
                         st.append(Stitch(p[0], p[1]))
-        prev = cur if cur is not None else run[0]
-        for p in run[(0 if cur is not None and dist(cur, run[0]) <= s.min_trim else 1):]:
+        # Nach Trim + Sprung steht die Nadel auf run[0], nicht mehr auf `cur`
+        prev = cur if joined else run[0]
+        for p in run[(0 if joined else 1):]:
             # Stiche länger als Maschinengrenze teilen
             dd = dist(prev, p)
             if dd > s.max_stitch:

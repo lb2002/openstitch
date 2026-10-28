@@ -19,7 +19,8 @@ from PySide6.QtGui import (
 )
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QWidget
-from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import LineString, MultiLineString, Point, Polygon
+from shapely.ops import unary_union
 
 from ..core.design import Design, EmbObject, FillObject, RunObject, SatinObject, compose
 from ..core.stitchplan import Cmd, StitchPlan, Thread
@@ -379,6 +380,10 @@ class StitchCanvas(QWidget):
                     if math.hypot(mm[0] - nx, mm[1] - ny) <= 8.0 / self.px_per_mm:
                         self.about_to_modify.emit("Knoten verschieben")
                         self._dragging_node_idx = idx
+                        # Knotenliste für die ganze Ziehbewegung einfrieren, sonst verschieben sich
+                        # die Indizes durch simplify()/buffer(0) bei jedem Mausschritt
+                        self._node_drag_geom = self.selected.world_geom()
+                        self._node_drag_coords = nodes
                         return
 
             if self.tool not in ("select", "edit_nodes"):
@@ -476,6 +481,8 @@ class StitchCanvas(QWidget):
             self.design_modified.emit("Stichwinkel drehen")
         if self._dragging_node_idx is not None:
             self._dragging_node_idx = None
+            self._node_drag_geom = None
+            self._node_drag_coords = None
             self.design_modified.emit("Knoten verschieben")
         if self._dragging_obj:
             self._dragging_obj = False
@@ -483,6 +490,9 @@ class StitchCanvas(QWidget):
                 self.design_modified.emit("Objekt transformieren")
 
     def _get_editable_nodes(self, obj: EmbObject) -> list[tuple[float, float]]:
+        # Nur Objekte mit eigener Vektor-Geometrie (Text/Stiche werden anders erzeugt)
+        if obj.kind not in ("fill", "satin", "run"):
+            return []
         g = obj.world_geom()
         if g is None or g.is_empty:
             return []
@@ -502,31 +512,30 @@ class StitchCanvas(QWidget):
     def _move_editable_node(self, obj: EmbObject, idx: int, new_mm: tuple[float, float]):
         from ..core.design import IDENTITY
         from ..engine.geom import polygons_of, lines_of
-        g = obj.world_geom()
+        g = getattr(self, "_node_drag_geom", None) or obj.world_geom()
+        coords = list(getattr(self, "_node_drag_coords", None) or self._get_editable_nodes(obj))
+        if not (0 <= idx < len(coords)):
+            return
+        coords[idx] = new_mm
         polys = polygons_of(g)
         if polys:
-            simp = polys[0].simplify(0.45, preserve_topology=True)
-            base_poly = simp if (isinstance(simp, Polygon) and not simp.is_empty) else polys[0]
-            coords = list(base_poly.exterior.coords)
-            if 0 <= idx < len(coords):
-                coords[idx] = new_mm
-                if idx == 0 or idx == len(coords) - 1:
-                    coords[0] = coords[-1] = new_mm
-                try:
-                    new_p = Polygon(coords, list(base_poly.interiors)).buffer(0)
-                    if not new_p.is_empty:
-                        obj.geom = new_p
-                        obj.transform = IDENTITY
-                except Exception:
-                    pass
+            if idx == 0 or idx == len(coords) - 1:
+                coords[0] = coords[-1] = new_mm
+            try:
+                new_p = Polygon(coords, list(polys[0].interiors)).buffer(0)
+            except Exception:
+                return
+            if new_p.is_empty:
+                return
+            # Weitere Teilflächen eines MultiPolygons unverändert übernehmen
+            obj.geom = unary_union([new_p] + polys[1:]) if len(polys) > 1 else new_p
+            obj.transform = IDENTITY
             return
         lns = lines_of(g)
         if lns:
-            coords = list(lns[0].coords)
-            if 0 <= idx < len(coords):
-                coords[idx] = new_mm
-                obj.geom = LineString(coords)
-                obj.transform = IDENTITY
+            rest = lns[1:]
+            obj.geom = MultiLineString([LineString(coords)] + rest) if rest else LineString(coords)
+            obj.transform = IDENTITY
 
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key_Return, Qt.Key_Enter) and self._draw_pts:

@@ -313,7 +313,8 @@ class MainWindow(QMainWindow):
         self._rebuild_timer = QTimer(self)
         self._rebuild_timer.setSingleShot(True)
         self._rebuild_timer.setInterval(120)
-        self._rebuild_timer.timeout.connect(self.rebuild_plan)
+        self._rebuild_timer.timeout.connect(lambda: self.rebuild_plan(refresh_props=False))
+        self._last_edit_key = None
 
         self.sim_timer = QTimer(self)
         self.sim_timer.setInterval(25)
@@ -760,18 +761,46 @@ class MainWindow(QMainWindow):
     def set_design(self, d: Design, reset_undo: bool = False, prebuilt_plan=None):
         self.canvas.design = d
         self.canvas.selected = d.objects[0] if d.objects else None
+        self.canvas.sim_limit = None
+        if hasattr(self, "btn_play"):
+            self.btn_play.setChecked(False)
         if reset_undo:
             self._undo_stack.clear()
             self._redo_stack.clear()
+        self._last_edit_key = None
+        self._sync_hoop_machine_ui()
         self.rebuild_plan(prebuilt_plan=prebuilt_plan)
 
+    def _sync_hoop_machine_ui(self):
+        """Rahmen-/Maschinen-Auswahl an das (neu geladene) Design anpassen, ohne Signale auszulösen."""
+        d = self.canvas.design
+        if hasattr(self, "cmb_hoop"):
+            idx = next((i for i in range(self.cmb_hoop.count())
+                        if self.cmb_hoop.itemData(i).name == d.hoop.name), -1)
+            if idx >= 0:
+                # gleiche Instanz verwenden wie die Auswahlliste
+                d.hoop = self.cmb_hoop.itemData(idx)
+                self.cmb_hoop.blockSignals(True)
+                self.cmb_hoop.setCurrentIndex(idx)
+                self.cmb_hoop.blockSignals(False)
+            if hasattr(self, "lbl_hoop_strategy"):
+                self.lbl_hoop_strategy.setText(f"{tr('lbl_strategy')}: {d.hoop.strategy_description}")
+        if hasattr(self, "cmb_machine"):
+            idx = next((i for i in range(self.cmb_machine.count())
+                        if self.cmb_machine.itemData(i).name == d.settings.machine_name), -1)
+            if idx >= 0:
+                self.cmb_machine.blockSignals(True)
+                self.cmb_machine.setCurrentIndex(idx)
+                self.cmb_machine.blockSignals(False)
+
     def _snapshot(self, desc: str):
-        self._undo_stack.append((desc, [o.clone() for o in self.canvas.design.objects]))
+        self._last_edit_key = None
+        self._undo_stack.append((desc, [o.snapshot() for o in self.canvas.design.objects]))
         if len(self._undo_stack) > 30:
             self._undo_stack.pop(0)
         self._redo_stack.clear()
 
-    def rebuild_plan(self, prebuilt_plan=None):
+    def rebuild_plan(self, prebuilt_plan=None, refresh_props: bool = True):
         self.canvas.plan = prebuilt_plan if prebuilt_plan is not None else self.canvas.design.build_plan()
         n = max(1, self.canvas.plan.stitch_count)
         self.slider_sim.blockSignals(True)
@@ -784,7 +813,8 @@ class MainWindow(QMainWindow):
         self._refresh_object_list()
         self._refresh_needle_list()
         self._refresh_stats()
-        self._populate_properties(self.canvas.selected)
+        if refresh_props:
+            self._populate_properties(self.canvas.selected)
         self.canvas.invalidate_render_cache()
 
     def _refresh_stats(self):
@@ -898,9 +928,12 @@ class MainWindow(QMainWindow):
         self._updating_props = False
 
     def _set_obj_attr(self, obj: EmbObject, attr: str, value):
-        if self._updating_props:
+        if self._updating_props or getattr(obj, attr, None) == value:
             return
-        self._snapshot(f"{attr} ändern")
+        key = (obj.id, attr)
+        if self._last_edit_key != key:
+            self._snapshot(f"{attr} ändern")
+            self._last_edit_key = key
         setattr(obj, attr, value)
         self._rebuild_timer.start()
 
@@ -910,6 +943,10 @@ class MainWindow(QMainWindow):
             self._snapshot("Text bearbeiten")
             new_o = dlg.created_object
             new_o.transform = obj.transform
+            new_o.name = obj.name or new_o.name
+            new_o.visible = obj.visible
+            if hasattr(obj, "pull_comp") and hasattr(new_o, "pull_comp"):
+                new_o.pull_comp = obj.pull_comp
             idx = self.canvas.design.objects.index(obj)
             self.canvas.design.objects[idx] = new_o
             self.canvas.selected = new_o
@@ -990,7 +1027,7 @@ class MainWindow(QMainWindow):
                 o.height *= s
                 o.letter_spacing *= s
                 o.arc_radius *= s
-                o.transform = (1, 0, 0, 1, nx, ny)
+                o.transform = (a, bb, d, e, nx, ny)
         self.rebuild_plan()
         self.canvas.zoom_to_fit()
 
@@ -1050,6 +1087,7 @@ class MainWindow(QMainWindow):
     def _toggle_selected_visibility(self):
         obj = self.canvas.selected
         if obj is not None:
+            self._snapshot("Sichtbarkeit")
             obj.visible = not obj.visible
             self.rebuild_plan()
 
@@ -1182,7 +1220,12 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
-        save_project(self.canvas.design, path)
+        try:
+            save_project(self.canvas.design, path)
+        except Exception as exc:
+            QMessageBox.critical(self, "Speicherfehler", str(exc))
+            return
+        self.status.showMessage(f"Gespeichert: {path}", 5000)
 
     def action_import_embroidery(self):
         exts = " ".join(f"*.{e} *.{e.upper()}" for e in READ_EXT)
@@ -1269,7 +1312,11 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
-        export_worksheet_pdf(self.canvas.design, self.canvas.plan, path)
+        try:
+            export_worksheet_pdf(self.canvas.design, self.canvas.plan, path)
+        except Exception as exc:
+            QMessageBox.critical(self, "PDF-Fehler", str(exc))
+            return
         QMessageBox.information(self, "PDF erstellt", f"Produktionsblatt gespeichert:\n{path}")
 
     def action_export_png(self):
@@ -1278,7 +1325,8 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
-        render_image(self.canvas.plan, px_per_mm=10.0).save(path)
+        if not render_image(self.canvas.plan, px_per_mm=10.0).save(path):
+            QMessageBox.critical(self, "PNG-Fehler", f"Bild konnte nicht gespeichert werden:\n{path}")
 
     # ---------------------------------------------- Digitalisier-Assistenten
     def action_auto_digitize(self):
@@ -1303,12 +1351,19 @@ class MainWindow(QMainWindow):
         self._open_auto_digitize_for_path(path)
 
     def _open_auto_digitize_for_path(self, path: str):
-        dlg = AutoDigitizeDialog(path, self)
+        try:
+            dlg = AutoDigitizeDialog(path, self)
+        except Exception as exc:
+            QMessageBox.critical(self, "Bild-Fehler", str(exc))
+            return
         if dlg.exec() == AutoDigitizeDialog.Accepted and dlg.result_data is not None:
             self._snapshot("Auto-Digitalisieren")
             res_d = dlg.result_data.design
+            same_mode = res_d.hoop.mode == self.canvas.design.hoop.mode
             res_d.hoop = self.canvas.design.hoop
-            self.set_design(res_d, prebuilt_plan=dlg.result_plan)
+            res_d.settings = self.canvas.design.settings
+            # Vorberechneter Plan gilt nur, wenn die Rahmen-Strategie identisch ist
+            self.set_design(res_d, prebuilt_plan=dlg.result_plan if same_mode else None)
             self.canvas.zoom_to_fit()
 
     def action_photostitch(self):
@@ -1318,11 +1373,16 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
-        dlg = PhotoStitchDialog(path, self)
+        try:
+            dlg = PhotoStitchDialog(path, self)
+        except Exception as exc:
+            QMessageBox.critical(self, "Bild-Fehler", str(exc))
+            return
         if dlg.exec() == PhotoStitchDialog.Accepted and dlg.result_design is not None:
             self._snapshot("PhotoStitch")
             res_d = dlg.result_design
             res_d.hoop = self.canvas.design.hoop
+            res_d.settings = self.canvas.design.settings
             self.set_design(res_d)
             self.canvas.zoom_to_fit()
 
@@ -1373,18 +1433,22 @@ class MainWindow(QMainWindow):
         if not self._undo_stack:
             return
         desc, prev_objs = self._undo_stack.pop()
-        self._redo_stack.append((desc, [o.clone() for o in self.canvas.design.objects]))
+        self._redo_stack.append((desc, [o.snapshot() for o in self.canvas.design.objects]))
+        self._last_edit_key = None
+        sel_id = self.canvas.selected.id if self.canvas.selected is not None else None
         self.canvas.design.objects = prev_objs
-        self.canvas.selected = prev_objs[0] if prev_objs else None
+        self.canvas.selected = next((o for o in prev_objs if o.id == sel_id), prev_objs[0] if prev_objs else None)
         self.rebuild_plan()
 
     def action_redo(self):
         if not self._redo_stack:
             return
         desc, next_objs = self._redo_stack.pop()
-        self._undo_stack.append((desc, [o.clone() for o in self.canvas.design.objects]))
+        self._undo_stack.append((desc, [o.snapshot() for o in self.canvas.design.objects]))
+        self._last_edit_key = None
+        sel_id = self.canvas.selected.id if self.canvas.selected is not None else None
         self.canvas.design.objects = next_objs
-        self.canvas.selected = next_objs[0] if next_objs else None
+        self.canvas.selected = next((o for o in next_objs if o.id == sel_id), next_objs[0] if next_objs else None)
         self.rebuild_plan()
 
     def action_duplicate_selected(self):
@@ -1432,7 +1496,7 @@ class MainWindow(QMainWindow):
                 o.height *= s
                 o.letter_spacing *= s
                 o.arc_radius *= s
-                o.transform = (1, 0, 0, 1, x * s, y * s)
+                o.transform = (a, b, d, e, x * s, y * s)
         self.rebuild_plan()
 
     # ------------------------------------------------------------ Simulator
