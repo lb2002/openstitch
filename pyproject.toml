@@ -30,3 +30,6 @@ Issues = "https://github.com/lb2002/openstitch/issues"
 
 [project.scripts]
 openstitch = "openstitch.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["openstitch*"]
