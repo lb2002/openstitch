@@ -184,6 +184,57 @@ def test_check_dialog_runs_and_fixes(win):
     assert win.canvas._spots
 
 
+def test_export_dialog_writes_and_verifies(win, tmp_path, monkeypatch):
+    from openstitch.ui import export_dialog as ed
+    monkeypatch.setattr(ed, "removable_drives", lambda: [(str(tmp_path), "STICK")])
+    win.set_design(corpus.build("fill_islands"), reset_undo=True)
+    win.wait_for_plan()
+    dlg = ed.ExportDialog(win)
+    assert dlg.cmb_where.currentData() == str(tmp_path)         # USB-Stick zuerst
+    assert dlg.cmb_format.currentData() == win.cmb_machine.currentData().native_ext
+    dlg.ed_name.setText("Müller: Logo/2")
+    dlg.cb_short.setChecked(True)
+    dlg.save()
+    assert dlg.saved_path and os.path.isfile(dlg.saved_path)
+    assert os.path.basename(dlg.saved_path) == "MLLERLOG." + dlg.cmb_format.currentData().upper()
+    assert dlg.lbl_result.property("severity") == "ok"
+    dlg.cb_short.setChecked(False)
+    assert "Logo_2" in dlg.target_path().replace("Müller_ ", "")
+    dlg.close()
+
+
+def test_export_dialog_reports_write_errors(win, tmp_path, monkeypatch):
+    from openstitch.ui import export_dialog as ed
+    monkeypatch.setattr(ed, "removable_drives", lambda: [(str(tmp_path / "nicht-da"), "WEG")])
+    win.set_design(corpus.build("fill_islands"), reset_undo=True)
+    win.wait_for_plan()
+    dlg = ed.ExportDialog(win)
+    dlg.save()
+    assert dlg.saved_path is None
+    assert dlg.lbl_result.property("severity") == "error"
+    dlg.close()
+
+
+def test_text_dialog_allows_small_lettering_and_suggests_micro(win):
+    from openstitch.fonts_micro import MICRO_SPEC
+    from openstitch.ui.dialogs import TextDialog
+    dlg = TextDialog(win.canvas.active_thread, parent=win)
+    dlg.show()
+    dlg.sp_height.setValue(2.5)
+    assert dlg.sp_height.value() == 2.5         # 2.5 mm ist das Versprechen der Micro-Schrift
+    dlg.cmb_font.setCurrentIndex(max(0, dlg.cmb_font.findText("Arial")))
+    if dlg.cmb_font.currentData() != MICRO_SPEC:
+        assert dlg.lbl_font_tip.isVisible()
+    dlg._use_micro()
+    assert dlg.cmb_font.currentData() == MICRO_SPEC and not dlg.lbl_font_tip.isVisible()
+    dlg.ed_text.setText("Test")
+    assert dlg.preview.obj is not None
+    dlg.grab()
+    dlg._apply()
+    assert dlg.created_object.height == 2.5
+    dlg.close()
+
+
 def test_all_finding_codes_have_texts():
     from openstitch.i18n import _TABLE
     for code in ("short_stitch", "over_max_stitch", "long_float", "no_lock", "orphan_run", "untrimmed_jump",

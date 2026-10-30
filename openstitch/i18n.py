@@ -226,6 +226,46 @@ _TABLE.update({
 })
 
 
+_TABLE.update({
+    "ph_text": ("Dein Text", "Your text", "Votre texte", "Tu texto"),
+    "tip_use_micro": ("Für so kleine Schrift besser „OpenStitch Micro“ verwenden (ein Klick hier)",
+                      "For lettering this small, use “OpenStitch Micro” (click here)",
+                      "Pour un texte aussi petit, utilisez « OpenStitch Micro » (cliquez ici)",
+                      "Para un texto tan pequeño, usa «OpenStitch Micro» (haz clic aquí)"),
+})
+
+# An die Maschine senden
+_TABLE.update({
+    "exp_title": ("An die Maschine senden", "Send to machine", "Envoyer à la machine", "Enviar a la máquina"),
+    "exp_heading": ("Fertig zum Sticken?", "Ready to stitch?", "Prêt à broder ?", "¿Listo para bordar?"),
+    "exp_facts": ("{st} Stiche · {colors} Farben · {w} × {h} mm", "{st} stitches · {colors} colors · {w} × {h} mm",
+                  "{st} points · {colors} couleurs · {w} × {h} mm", "{st} puntadas · {colors} colores · {w} × {h} mm"),
+    "exp_format": ("Dateiformat:", "File format:", "Format de fichier :", "Formato de archivo:"),
+    "exp_recommended": ("{} (empfohlen)", "{} (recommended)", "{} (recommandé)", "{} (recomendado)"),
+    "exp_name": ("Dateiname:", "File name:", "Nom du fichier :", "Nombre de archivo:"),
+    "exp_short": ("Kurzer Name für ältere Maschinen", "Short name for older machines",
+                  "Nom court pour machines anciennes", "Nombre corto para máquinas antiguas"),
+    "exp_short_tip": ("Viele ältere Maschinen zeigen nur 8 Zeichen ohne Umlaute an.",
+                      "Many older machines only show 8 plain characters.",
+                      "Beaucoup de machines anciennes n'affichent que 8 caractères simples.",
+                      "Muchas máquinas antiguas solo muestran 8 caracteres simples."),
+    "exp_where": ("Speichern auf:", "Save to:", "Enregistrer sur :", "Guardar en:"),
+    "exp_usb": ("USB-Stick: {}", "USB stick: {}", "Clé USB : {}", "Memoria USB: {}"),
+    "exp_browse": ("Ordner …", "Folder …", "Dossier …", "Carpeta …"),
+    "exp_refresh": ("Aktualisieren", "Refresh", "Actualiser", "Actualizar"),
+    "exp_threads": ("Garnfolge für die Maschine", "Thread order for the machine", "Ordre des fils pour la machine",
+                    "Orden de hilos para la máquina"),
+    "exp_save": ("Speichern", "Save", "Enregistrer", "Guardar"),
+    "exp_done": ("„{name}“ gespeichert und geprüft: {st} Stiche korrekt gelesen. Jetzt den Stick an die Maschine stecken.",
+                 "“{name}” saved and verified: {st} stitches read back correctly. Now plug the stick into your machine.",
+                 "« {name} » enregistré et vérifié : {st} points relus correctement. Branchez la clé sur la machine.",
+                 "«{name}» guardado y verificado: {st} puntadas leídas correctamente. Conecta la memoria a la máquina."),
+    "exp_done_plain": ("„{name}“ gespeichert.", "“{name}” saved.", "« {name} » enregistré.", "«{name}» guardado."),
+    "exp_failed": ("Speichern fehlgeschlagen: {}", "Could not save: {}", "Échec de l'enregistrement : {}",
+                   "No se pudo guardar: {}"),
+    "btn_close": ("Schliessen", "Close", "Fermer", "Cerrar"),
+})
+
 # Design-Prüfung (virtueller Probestick)
 _TABLE.update({
     "chk_title": ("Design prüfen", "Check design", "Vérifier le motif", "Revisar diseño"),

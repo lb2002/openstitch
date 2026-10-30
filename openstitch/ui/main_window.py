@@ -51,12 +51,13 @@ from ..core.fabric import FABRICS, fabric_by_id
 from ..core.machines import MACHINE_PROFILES, MachineProfile
 from ..core.stitchplan import Thread
 from ..engine.pro_tools import create_applique_objects, import_svg
-from ..io.formats import FORMAT_NAMES, READ_EXT, WRITE_EXT, export_plan, import_file, verify_exported_file
+from ..io.formats import READ_EXT, import_file
 from ..io.project import export_worksheet_pdf, load_project, save_project
 from ..render import render_image
 from ..text import TextObject
 from .canvas import StitchCanvas
 from .check_dialog import DesignCheckDialog
+from .export_dialog import ExportDialog
 from .dialogs import AutoDigitizeDialog, MelcoDiskDialog, PhotoStitchDialog, TextDialog
 from .onboarding import InAppTourOverlay, OnboardingTourDialog, create_openstitch_logo_design, studio_icon
 from .plan_worker import PlanBuilder
@@ -576,7 +577,7 @@ class MainWindow(QMainWindow):
         dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         dock.setFeatures(QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable)
         split = QSplitter(Qt.Vertical)
-        split.setMinimumWidth(270)
+        split.setMinimumWidth(304)
 
         w_top = QWidget()
         vt = QVBoxLayout(w_top)
@@ -1514,33 +1515,12 @@ class MainWindow(QMainWindow):
         self._bulk_edit(tr("undo_fix"), edit)
 
     def action_export_embroidery(self):
-        mp: MachineProfile = self.cmb_machine.currentData()
-        ext_default = mp.native_ext.upper() if mp else "EXP"
-        filters = ";;".join(f"{FORMAT_NAMES.get(e, e.upper())} (*.{e})" for e in WRITE_EXT)
-        path = self._ask_save_file(
-            tr("fd_export_emb"), f"{self.canvas.design.name}.{ext_default}", filters
-        )
-        if not path:
-            return
         self.wait_for_plan()
-        try:
-            export_plan(self.canvas.plan, path)
-            ext = os.path.splitext(path)[1].lower().lstrip(".")
-            if ext in ("exp", "dst", "pes", "jef", "vp3", "xxx", "u01", "pec", "tbf"):
-                rep = verify_exported_file(path, self.canvas.plan)
-                QMessageBox.information(
-                    self,
-                    tr("msg_export_verified_title"),
-                    tr("msg_export_verified_text").format(
-                        path=path, size=fmt_int(rep["bytes"]), stitches=fmt_int(rep["stitches"]),
-                        w=rep["width_mm"], h=rep["height_mm"], step=rep["max_step_mm"],
-                        colors=rep["color_changes"], jumps=rep["jumps"],
-                    ),
-                )
-            else:
-                QMessageBox.information(self, tr("msg_export_ok_title"), tr("msg_export_ok_text").format(path))
-        except Exception as exc:
-            QMessageBox.critical(self, tr("err_export_title"), str(exc))
+        ExportDialog(self).exec()
+
+    @staticmethod
+    def thread_icon(rgb: tuple[int, int, int]) -> QIcon:
+        return _color_icon(rgb)
 
     def action_export_pdf(self):
         path = self._ask_save_file(

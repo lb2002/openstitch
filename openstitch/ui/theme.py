@@ -179,6 +179,13 @@ QPushButton#primaryBtn {{
     font-weight: 600;
 }}
 QPushButton#primaryBtn:hover {{ background-color: {t.accent}; border-color: {t.accent}; color: {t.on_accent}; }}
+QDialogButtonBox QPushButton:default {{
+    background-color: {t.accent_fill};
+    border: 1px solid {t.accent_fill};
+    color: #ffffff;
+    font-weight: 600;
+}}
+QDialogButtonBox QPushButton:default:hover {{ background-color: {t.accent}; border-color: {t.accent}; color: {t.on_accent}; }}
 QPushButton#iconBtn {{ padding: 5px; min-width: 22px; }}
 QPushButton#startCard {{
     background-color: {t.surface};
@@ -229,7 +236,7 @@ QListWidget, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QPlainTe
 }}
 QComboBox::drop-down {{ border: none; width: 20px; }}
 QComboBox::down-arrow {{ image: url({down}); width: 13px; height: 13px; }}
-QSpinBox, QDoubleSpinBox {{ padding-right: 18px; }}
+QSpinBox, QDoubleSpinBox {{ padding-left: 8px; padding-right: 18px; }}
 QSpinBox::up-button, QDoubleSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::down-button {{
     background: transparent;
     border: none;
@@ -277,11 +284,21 @@ QSlider::handle:horizontal {{
     margin: -5px 0;
     border-radius: 7px;
 }}
+QGroupBox {{
+    background-color: {t.surface};
+    border: 1px solid {t.outline_soft};
+    border-radius: 10px;
+    margin-top: 12px;
+    padding: 12px 10px 8px 10px;
+    font-weight: 600;
+}}
+QGroupBox QLabel, QGroupBox QCheckBox {{ font-weight: 400; }}
+QGroupBox::title {{ subcontrol-origin: margin; left: 12px; padding: 0 4px; color: {t.text_dim}; }}
 QProgressBar {{
     background: {t.surface_top};
     border: none;
     border-radius: 3px;
-    height: 6px;
+    max-height: 6px;
     text-align: center;
     color: transparent;
 }}
