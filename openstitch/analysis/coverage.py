@@ -41,9 +41,12 @@ def check_coverage(design: Design, t: Trace) -> tuple[list[dict], dict]:
     objs = [o for o in design.objects if o.visible and o.kind in ("fill", "satin")]
     if len(seg) == 0 or not objs:
         return out, per_obj
-    x0, y0 = seg[:, [0, 2]].min() - 2, seg[:, [1, 3]].min() - 2
-    w = int((seg[:, [0, 2]].max() + 2 - x0) * PX_PER_MM) + 1
-    h = int((seg[:, [1, 3]].max() + 2 - y0) * PX_PER_MM) + 1
+    # Das Raster muss auch die Formen umfassen, sonst fallen Teile ohne Stiche gar nicht auf
+    bs = [o.bounds() for o in objs]
+    x0 = min(seg[:, [0, 2]].min(), min(b[0] for b in bs)) - 2
+    y0 = min(seg[:, [1, 3]].min(), min(b[1] for b in bs)) - 2
+    w = int((max(seg[:, [0, 2]].max(), max(b[2] for b in bs)) + 2 - x0) * PX_PER_MM) + 1
+    h = int((max(seg[:, [1, 3]].max(), max(b[3] for b in bs)) + 2 - y0) * PX_PER_MM) + 1
     if w * h > 40_000_000:
         return out, per_obj
     mask = thread_mask(seg, x0, y0, w, h) > 0
