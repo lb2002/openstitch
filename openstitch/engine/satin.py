@@ -289,7 +289,8 @@ def _zigzag(cross, max_stitch: float, short_stitch: bool = True) -> list[Pt]:
         w = dist(prev, target)
         # Split-Satin bei breiten Säulen (> max_stitch): versetzte Zwischenstiche
         if w > max_stitch:
-            nseg = int(math.ceil(w / max_stitch))
+            # Der Versatz verlängert ein Teilstück um 17.5 % → auch das muss unter max_stitch bleiben
+            nseg = int(math.ceil(w * 1.175 / max_stitch))
             shift = 0.35 if (i % 2) else -0.35
             for k in range(1, nseg):
                 t = max(0.15, min(0.85, (k + shift * 0.5) / nseg))

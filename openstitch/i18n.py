@@ -226,6 +226,15 @@ _TABLE.update({
 })
 
 
+# Fehlermeldungen beim Laden
+_TABLE.update({
+    "err_project_damaged": (
+        "„{name}“ ist beschädigt oder keine OpenStitch-Projektdatei.",
+        "“{name}” is damaged or not an OpenStitch project file.",
+        "« {name} » est endommagé ou n'est pas un fichier de projet OpenStitch.",
+        "«{name}» está dañado o no es un archivo de proyecto de OpenStitch."),
+})
+
 # Qualitäts-Doktor
 _TABLE.update({
     "doc_empty": ("Das Design enthält noch keine Stiche.", "The design has no stitches yet.",

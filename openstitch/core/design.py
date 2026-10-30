@@ -333,17 +333,37 @@ OBJECT_TYPES: dict[str, type] = {"fill": FillObject, "satin": SatinObject, "run"
                                  "stitches": StitchesObject}
 
 
+def _checked_param(typ, lo, hi, val):
+    """Wert aus einer Projektdatei prüfen: Zahlen in den erlaubten Bereich holen, Unsinn ablehnen."""
+    if typ is bool:
+        return bool(val)
+    if typ in (int, float):
+        v = float(val)
+        if not math.isfinite(v):
+            raise ValueError(f"invalid number: {val!r}")
+        v = min(max(v, lo), hi) if hi > lo else v
+        return typ(v)
+    if isinstance(typ, (list, tuple)):
+        if val not in typ:
+            raise ValueError(f"unknown option: {val!r}")
+        return val
+    return str(val)
+
+
 def object_from_dict(d: dict) -> EmbObject:
     cls = OBJECT_TYPES[d["kind"]]
-    kw = {"thread": Thread.from_dict(d["thread"]), "name": d.get("name", ""),
-          "transform": tuple(d.get("transform", IDENTITY)), "visible": d.get("visible", True)}
+    transform = tuple(float(v) for v in d.get("transform", IDENTITY))
+    if len(transform) != 6 or not all(math.isfinite(v) for v in transform):
+        raise ValueError("invalid transform")
+    kw = {"thread": Thread.from_dict(d["thread"]), "name": str(d.get("name", "")),
+          "transform": transform, "visible": bool(d.get("visible", True))}
     if "geom" in d:
         kw["geom"] = wkt.loads(d["geom"]) if d["geom"] else None
     if "stitch_runs" in d:
         kw["stitch_runs"] = [[tuple(p) for p in r] for r in d["stitch_runs"]]
-    for attr, *_ in getattr(cls, "PARAMS", ()):
+    for attr, _label, typ, lo, hi, _step in getattr(cls, "PARAMS", ()):
         if attr in d:
-            kw[attr] = d[attr]
+            kw[attr] = _checked_param(typ, lo, hi, d[attr])
     for extra in getattr(cls, "EXTRA_FIELDS", ()):
         if extra in d:
             kw[extra] = d[extra]

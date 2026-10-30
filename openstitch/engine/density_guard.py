@@ -20,6 +20,9 @@ from collections import defaultdict
 from ..core.stitchplan import Cmd, Stitch, StitchPlan
 
 
+MAX_BRIDGE_MM = 2.5     # so lang darf ein Stich werden, der einen gesättigten Einstich überbrückt
+
+
 def _is_turn(a: tuple[float, float], s: Stitch, nxt: Stitch) -> bool:
     """Wendepunkt (> 60° Richtungswechsel), z. B. Reihenwechsel im Tatami oder Satin-Kante.
 
@@ -60,8 +63,12 @@ def optimize_stitches_for_melco(
 
         cell = (int(math.floor(s.x / cell_size_mm)), int(math.floor(s.y / cell_size_mm)))
         if grid[cell] >= max_punctures_per_cell and not is_last_of_run:
-            # Zelle ist bereits gesättigt → Einstich überspringen, schont Stoff & Faden
-            continue
+            # Zelle ist bereits gesättigt → Einstich überspringen, schont Stoff & Faden.
+            # Aber nur, wenn der nächste Stich dadurch nicht lang wird: sonst entsteht auf
+            # mehrfach abgefahrenen Linien ein Riesenstich quer über das Motiv.
+            nxt = stitches[i + 1]
+            if last_xy is None or math.hypot(nxt.x - last_xy[0], nxt.y - last_xy[1]) <= MAX_BRIDGE_MM:
+                continue
 
         grid[cell] += 1
         out.append(s)
