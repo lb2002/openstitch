@@ -5,7 +5,7 @@ import math
 import os
 from collections import defaultdict
 
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -25,6 +25,7 @@ from shapely.ops import unary_union
 from ..core.design import ColumnObject, Design, EmbObject, FillObject, RunObject, SatinObject, compose, m_scale
 from ..core.stitchplan import Cmd, StitchPlan, Thread
 from ..i18n import tr
+from . import theme
 from ..render import draw_plan
 
 
@@ -55,6 +56,7 @@ class StitchCanvas(QWidget):
         self.show_heatmap: bool = False
         self.fabric_theme: str = "slate"  # 'slate' | 'sand' | 'light'
         self.sim_limit: int | None = None
+        self._spots: list[tuple[float, float]] = []   # Fundstellen der Design-Prüfung
 
         # 3D-Render-Cache (verhindert Neuberechnung von 100k Linien bei jedem Maus-Event!)
         self._cache_img: QImage | None = None
@@ -80,6 +82,22 @@ class StitchCanvas(QWidget):
         self._orig_bounds = None
         self._dragging_node_idx: int | None = None
         self._dragging_angle: bool = False
+
+    def show_spots(self, pts: list[tuple[float, float]]):
+        """Zeigt Fundstellen der Prüfung: heranzoomen und für einige Sekunden markieren."""
+        if not pts:
+            return
+        self._spots = list(pts)
+        x, y = pts[0]
+        self.px_per_mm = max(self.px_per_mm, 7.0)
+        self.pan_x, self.pan_y = -x * self.px_per_mm, -y * self.px_per_mm
+        self.invalidate_render_cache()
+        QTimer.singleShot(6000, self._clear_spots)
+        self.update()
+
+    def _clear_spots(self):
+        self._spots = []
+        self.update()
 
     def invalidate_render_cache(self):
         self._plan_version += 1
@@ -180,7 +198,7 @@ class StitchCanvas(QWidget):
         p.setRenderHint(QPainter.SmoothPixmapTransform, True)
 
         # Weicher, augenfreundlicher Studio-Hintergrund (kein hartes Schwarz)
-        p.fillRect(self.rect(), QColor(34, 38, 47))
+        p.fillRect(self.rect(), theme.color("canvas"))
 
         p.save()
         p.translate(self.width() / 2.0 + self.pan_x, self.height() / 2.0 + self.pan_y)
@@ -346,16 +364,25 @@ class StitchCanvas(QWidget):
             "draw_satin": "hud_satin",
             "draw_run": "hud_run",
         }
+        if self._spots:
+            p.setBrush(Qt.NoBrush)
+            p.setPen(QPen(theme.color("err"), 2.2))
+            for x, y in self._spots:
+                p.drawEllipse(self.mm_to_screen(x, y), 15, 15)
         hud_text = tr(tool_keys.get(self.tool, "hud_select"))
         p.setFont(QFont("Segoe UI", 8.5))
         fm = p.fontMetrics()
         tw = fm.horizontalAdvance(hud_text) + 22
         hud_rect = QRectF(12, 10, tw, 24)
-        p.setPen(QPen(QColor(68, 76, 94, 150), 1))
-        p.setBrush(QColor(38, 43, 54, 210))
+        p.setPen(QPen(theme.color("outline_soft"), 1))
+        p.setBrush(theme.color("hud_bg"))
         p.drawRoundedRect(hud_rect, 12, 12)
-        p.setPen(QColor(186, 195, 212))
+        p.setPen(theme.color("hud_text"))
         p.drawText(hud_rect, Qt.AlignCenter, hud_text)
+        if not self.design.objects and self.tool == "select":
+            p.setPen(theme.color("text_faint"))
+            r = self.rect().adjusted(40, 0, -40, 0)
+            p.drawText(r, Qt.AlignCenter | Qt.TextWordWrap, tr("canvas_empty_hint"))
 
     # --------------------------------------------------------- Maus / Key
     def wheelEvent(self, event: QWheelEvent):

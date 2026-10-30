@@ -118,6 +118,6 @@ def check_density(t: Trace, max_layers: float) -> tuple[list[dict], float]:
         return [], peak
     ys, xs = np.nonzero(over)
     pts = np.column_stack((x0 + (xs + 0.5) * cell, y0 + (ys + 0.5) * cell))
-    sev = "error" if peak > max_layers * 1.6 else "warning"
+    sev = "error" if peak > max_layers * 1.6 and over.sum() >= 30 else "warning"
     return [{"code": "too_dense", "severity": sev, "count": int(over.sum()), "peak": peak,
              "limit": max_layers, "where": _spots(pts)}], peak

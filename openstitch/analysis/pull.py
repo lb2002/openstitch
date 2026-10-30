@@ -15,11 +15,11 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import splu
 
 from ..core.stitchplan import Cmd
-from .fabric import Fabric
+from ..core.fabric import Fabric
 from .stitches import Trace, layers_map
 
 # Kalibriert: 4 mm Satin ohne Kompensation auf gewebter Baumwolle zieht sich um ~0.3 mm zusammen
-TENSION = 0.055
+TENSION = 0.021
 THREAD_W = 0.27
 MARGIN = 12.0
 STIFFEN = 1.6            # je Fadenlage steigt die lokale Steifigkeit um diesen Faktor
@@ -118,17 +118,14 @@ def _stiffness_matrix(grid: _Grid, s: np.ndarray):
 
 
 def _chunks(t: Trace, idx: np.ndarray) -> np.ndarray:
-    """Teilt die Einstiche in Abschnitte (Farbblöcke; grosse Blöcke zusätzlich der Länge nach)."""
-    n = len(idx)
-    chunk = np.zeros(n, int)
-    size = max(n // MAX_CHUNKS, 1)
-    cur = start = 0
-    for i in range(1, n):
-        if t.block[idx[i]] != t.block[idx[i - 1]] or i - start >= size:
-            cur += 1
-            start = i
-        chunk[i] = cur
-    return chunk
+    """Teilt die Einstiche in Abschnitte je Farbblock; ein Block gilt als ein Arbeitsgang.
+
+    Würde eine grosse Füllung mittendrin geteilt, entstünden Sprünge in der Fläche, die es auf dem
+    Stoff nicht gibt. Bei sehr vielen Blöcken werden benachbarte zusammengelegt."""
+    blocks = t.block[idx]
+    order = np.unique(blocks)
+    k = max(1, int(np.ceil(len(order) / MAX_CHUNKS)))
+    return np.searchsorted(order, blocks) // k
 
 
 def simulate_pull(t: Trace, fabric: Fabric) -> PullResult | None:
@@ -177,7 +174,7 @@ def simulate_pull(t: Trace, fabric: Fabric) -> PullResult | None:
                       float(np.percentile(shift, 95)), mis, gaps)
 
 
-def _misregistration(x, y, dx, dy, chunk, cell: float = 1.0, min_points: int = 4):
+def _misregistration(x, y, dx, dy, chunk, cell: float = 1.0, min_points: int = 2):
     """Versatz zwischen verschiedenen Abschnitten am selben Ort (mittlere Abweichung je Zelle)."""
     ix = np.floor(x / cell).astype(np.int64)
     iy = np.floor(y / cell).astype(np.int64)

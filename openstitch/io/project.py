@@ -11,6 +11,7 @@ from shapely.errors import GEOSException
 
 from .. import APP_NAME, __version__
 from ..core.design import HOOPS, Design, Hoop, Settings, object_from_dict
+from ..core.fabric import fabric_by_id
 from ..core.stitchplan import StitchPlan
 from ..i18n import fmt_int, machine_display_name, tr
 from ..render import render_image
@@ -21,6 +22,7 @@ def save_project(design: Design, path: str) -> None:
         "app": APP_NAME,
         "version": __version__,
         "name": design.name,
+        "fabric": design.fabric,
         "hoop": {
             "name": design.hoop.name,
             "width": design.hoop.width,
@@ -62,7 +64,8 @@ def load_project(path: str) -> Design:
             data = json.load(f)
         objs = [object_from_dict(od) for od in data.get("objects", [])]
         return Design(objects=objs, hoop=_load_hoop(data.get("hoop", {})),
-                      settings=_load_settings(data.get("settings", {})), name=str(data.get("name", "Projekt")))
+                      settings=_load_settings(data.get("settings", {})), name=str(data.get("name", "Projekt")),
+                      fabric=fabric_by_id(data.get("fabric")).id)
     except OSError:
         raise
     except (ValueError, KeyError, TypeError, AttributeError, IndexError, GEOSException) as exc:

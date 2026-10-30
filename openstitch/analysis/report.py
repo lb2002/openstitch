@@ -5,15 +5,16 @@ import math
 from dataclasses import dataclass, field
 
 from ..core.design import Design
+from ..core.fabric import DEFAULT_FABRIC, Fabric, fabric_by_id
 from ..core.stitchplan import Cmd, StitchPlan
 from .checks import check_density, check_needle_pileup, check_runs, check_stitch_lengths
 from .coverage import check_coverage
-from .fabric import DEFAULT_FABRIC, Fabric
 from .pull import PullResult, simulate_pull
 from .stitches import Trace
 
-_PENALTY = {"error": 25.0, "warning": 7.0, "info": 1.0}
+_PENALTY = {"error": 22.0, "warning": 7.0, "info": 1.0}
 _ORDER = {"error": 0, "warning": 1, "info": 2}
+PUCKER_MM = 0.7         # so weit zieht sich der Stoff zusammen, bevor man Wellen sieht
 
 
 @dataclass
@@ -58,9 +59,13 @@ def _hoop_findings(design: Design, t: Trace) -> list[dict]:
     return []
 
 
-def simulate_stitchout(design: Design | None, plan: StitchPlan, fabric: Fabric = DEFAULT_FABRIC,
+def simulate_stitchout(design: Design | None, plan: StitchPlan, fabric: Fabric | None = None,
                        needles: int | None = None, physics: bool = True) -> Report:
-    """Virtueller Probestick. `design` darf None sein (dann nur stichbasierte Prüfungen)."""
+    """Virtueller Probestick. `design` darf None sein (dann nur stichbasierte Prüfungen).
+
+    Ohne `fabric` gilt der im Design gewählte Stoff."""
+    if fabric is None:
+        fabric = fabric_by_id(design.fabric) if design is not None else DEFAULT_FABRIC
     t = Trace.of(plan)
     raw: list[dict] = []
     max_stitch = design.settings.max_stitch if design is not None else 12.1
@@ -87,8 +92,8 @@ def simulate_stitchout(design: Design | None, plan: StitchPlan, fabric: Fabric =
         if pull.gaps:
             raw.append({"code": "registration_gap", "severity": "warning", "count": len(pull.gaps),
                         "mm": pull.misregistration, "where": pull.gaps})
-        if pull.p95_shift > 0.9:
+        if pull.p95_shift > PUCKER_MM:
             raw.append({"code": "puckering", "severity": "warning", "count": 1, "mm": pull.p95_shift})
     findings = sorted((_finding(d) for d in raw), key=lambda f: (_ORDER[f.severity], f.code))
-    score = 100.0 - sum(_PENALTY[f.severity] * (1 + min(math.log10(max(f.count, 1)), 2) / 2) for f in findings)
+    score = 100.0 - sum(_PENALTY[f.severity] * (1 + min(math.log10(max(f.count, 1)), 2) / 4) for f in findings)
     return Report(int(round(max(0.0, score))), findings, metrics, pull)

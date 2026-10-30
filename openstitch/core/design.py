@@ -15,9 +15,13 @@ from ..engine.fill import fill_runs, join_covered_runs
 from ..engine.geom import Pt, clean, dist, lines_of, main_axis_angle, polygons_of, directional_grow
 from ..engine.running import bean_stitch, running_stitch, tie_stitches
 from ..engine.satin import UNDERLAY_STYLES, satin_runs
+from .fabric import fabric_by_id
 from .stitchplan import Cmd, ColorBlock, Stitch, StitchPlan, Thread
 
 IDENTITY = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+
+KNOCKOUT_OVERLAP = 1.0      # mm: so weit läuft die Füllung unter dem Objekt darüber weiter
+KNOCKOUT_MIN_AREA = 4.0     # mm²: kleinere verdeckte Stellen lohnen das Zerschneiden nicht
 
 
 def compose(m2, m1):
@@ -97,6 +101,23 @@ class EmbObject:
             d[attr] = getattr(self, attr)
         return d
 
+    def footprint(self):
+        """Fläche, die dieses Objekt mit Faden bedeckt (Polygone), oder None bei Laufstichen."""
+        g = self.world_geom()
+        return g if polygons_of(g) else None
+
+    def covered_core(self):
+        """Kernbereich, unter dem nichts gestickt werden muss (zwischengespeichert)."""
+        key = (id(getattr(self, "geom", None)), self.transform, getattr(self, "width", None),
+               getattr(self, "text", None), getattr(self, "height", None), getattr(self, "font", None))
+        cached = getattr(self, "_core", None)
+        if cached is None or cached[0] != key:
+            fp = self.footprint()
+            core = None if fp is None or fp.is_empty else fp.buffer(-KNOCKOUT_OVERLAP)
+            cached = (key, None if core is None or core.is_empty else core)
+            self._core = cached
+        return cached[1]
+
     def clone(self):
         c = copy.deepcopy(self)
         c.id = _new_id()
@@ -116,6 +137,7 @@ class FillObject(EmbObject):
     pattern: str = "standard"
     underlay: bool = True
     pull_comp: float = 0.20
+    knockout: bool = True
     kind: str = "fill"
 
     PARAMS = (("angle", "Stichwinkel (°)", float, -180, 180, 5),
@@ -123,7 +145,8 @@ class FillObject(EmbObject):
               ("stitch_len", "Stichlänge (mm)", float, 1.5, 7.0, 0.1),
               ("pattern", "Muster", ["standard", "diagonal", "ziegel", "wellen", "kontur"], 0, 0, 0),
               ("underlay", "Unterlage", bool, 0, 0, 0),
-              ("pull_comp", "Zugkompensation (mm)", float, 0.0, 1.0, 0.05))
+              ("pull_comp", "Zugkompensation (mm)", float, 0.0, 1.0, 0.05),
+              ("knockout", "Verdecktes nicht sticken", bool, 0, 0, 0))
 
     def local_geom(self):
         return self.geom
@@ -132,6 +155,12 @@ class FillObject(EmbObject):
         g = self.world_geom()
         if g is None or g.is_empty:
             return []
+        hidden = getattr(self, "_hidden", None)
+        if hidden is not None:
+            g = clean(g.difference(hidden))
+            if g is None or g.is_empty:
+                return []
+        spacing = self.spacing * getattr(self, "_density_factor", 1.0)
         # Winkel mit Objekt-Rotation mitdrehen
         a, b, d, e, _, _ = self.transform
         rot = math.degrees(math.atan2(d, a))
@@ -154,7 +183,7 @@ class FillObject(EmbObject):
                         k = min(range(len(ring) - 1), key=lambda i: dist(ring[i], cur))
                         ring = ring[k:-1] + ring[:k + 1]
                     edge = running_stitch(ring, 3.2)
-                    lat = fill_runs(ip.buffer(-0.25), ang + 90, spacing=max(2.2, self.spacing * lat_mult),
+                    lat = fill_runs(ip.buffer(-0.25), ang + 90, spacing=max(2.2, spacing * lat_mult),
                                     stitch_len=4.2, pattern="ziegel", start=edge[-1] if edge else cur)
                     out.append(edge)
                     out.extend(lat)
@@ -168,7 +197,7 @@ class FillObject(EmbObject):
         # Rahmen-abhängiger Zuschlag auf die Zugkompensation ("Trampolin-Effekt" in grossen Rahmen / Kappen)
         hoop_pc_boost = getattr(self, "_hoop_pc_boost", 1.0)
         top_geom = directional_grow(g, self.pull_comp * hoop_pc_boost, ang)
-        top = fill_runs(top_geom, ang, self.spacing, self.stitch_len, self.pattern, start=cur)
+        top = fill_runs(top_geom, ang, spacing, self.stitch_len, self.pattern, start=cur)
         # Unterlage und Weg zum Deckstich-Einstieg liegen unter dem Deckstich → verbinden statt trimmen
         under = [r for r in out if len(r) >= 2]
         if under and top:
@@ -203,8 +232,10 @@ class SatinObject(EmbObject):
         g = self.world_geom()
         if g is None or g.is_empty:
             return []
-        eff_spacing = min(self.spacing, 0.25) if self.puff_3d else self.spacing
-        eff_pc = max(self.pull_comp, 0.32) if self.puff_3d else self.pull_comp
+        spacing = self.spacing * getattr(self, "_density_factor", 1.0)
+        pull_comp = self.pull_comp * getattr(self, "_hoop_pc_boost", 1.0)
+        eff_spacing = min(spacing, 0.25) if self.puff_3d else spacing
+        eff_pc = max(pull_comp, 0.32) if self.puff_3d else pull_comp
         res = satin_runs(
             g, eff_spacing, eff_pc, self.max_stitch, self.underlay, start, puff_3d=self.puff_3d,
             underlay_style=self.underlay_style,
@@ -289,6 +320,10 @@ class ColumnObject(EmbObject):
             return (0, 0, 0, 0)
         return g.buffer(self.width * m_scale(self.transform) / 2.0).bounds
 
+    def footprint(self):
+        g = self.world_geom()
+        return None if g is None or g.is_empty else g.buffer(self.width * m_scale(self.transform) / 2.0)
+
     def runs(self, start=None):
         from ..engine.column import column_runs
         g = self.world_geom()
@@ -300,7 +335,8 @@ class ColumnObject(EmbObject):
             if cur is not None:
                 lines.sort(key=lambda l: min(dist(cur, l.coords[0]), dist(cur, l.coords[-1])))
             l = lines.pop(0)
-            rs = column_runs(list(l.coords), w, spacing=self.spacing, pull_comp=self.pull_comp,
+            rs = column_runs(list(l.coords), w, spacing=self.spacing * getattr(self, "_density_factor", 1.0),
+                             pull_comp=self.pull_comp * getattr(self, "_hoop_pc_boost", 1.0),
                              underlay="center" if self.underlay else "none", start=cur)
             rs = [r for r in rs if len(r) >= 2]
             if rs:
@@ -501,6 +537,7 @@ class Design:
     hoop: Hoop = field(default_factory=lambda: HOOPS[2])
     settings: Settings = field(default_factory=Settings)
     name: str = "Unbenannt"
+    fabric: str = "woven"       # Stoff-Profil (siehe core.fabric)
     _cache: dict = field(default_factory=dict, repr=False)
 
     def bounds(self):
@@ -511,11 +548,36 @@ class Design:
         return (min(b[0] for b in bs), min(b[1] for b in bs),
                 max(b[2] for b in bs), max(b[3] for b in bs))
 
-    def object_runs(self, obj: EmbObject, start) -> list[list[Pt]]:
-        # Rahmen-Modus und Zugkompensations-Boost an das Objekt übergeben
+    def _hidden_under(self, obj: EmbObject, later: list[EmbObject]):
+        """Fläche von `obj`, die spätere Objekte vollständig zudecken: dort entfällt die Füllung.
+
+        Das spart Stiche und verhindert harte Stellen. Dünne Objekte (Text, Konturen unter 2 mm)
+        haben keinen Kern und bleiben unberührt: sie brauchen die Füllung als Unterlage."""
+        if obj.kind != "fill" or not obj.knockout:
+            return None
+        x0, y0, x1, y1 = obj.bounds()
+        cores = []
+        for o in later:
+            b = o.bounds()
+            if b[2] < x0 or b[0] > x1 or b[3] < y0 or b[1] > y1:
+                continue
+            c = o.covered_core()
+            if c is not None:
+                cores.append(c)
+        if not cores:
+            return None
+        hidden = unary_union(cores).intersection(obj.world_geom())
+        return None if hidden.is_empty or hidden.area < KNOCKOUT_MIN_AREA else hidden
+
+    def object_runs(self, obj: EmbObject, start, later: list[EmbObject] = ()) -> list[list[Pt]]:
+        # Rahmen- und Stoffeinflüsse an das Objekt übergeben
+        fabric = fabric_by_id(self.fabric)
         obj._hoop_mode = self.hoop.mode
-        obj._hoop_pc_boost = self.hoop.pc_boost
-        key = obj.cache_key(start) + f"|{self.hoop.mode}"
+        obj._hoop_pc_boost = self.hoop.pc_boost * fabric.pull_factor
+        obj._density_factor = fabric.density_factor
+        obj._hidden = self._hidden_under(obj, later)
+        hidden_key = "" if obj._hidden is None else f"{obj._hidden.area:.3f}/{obj._hidden.length:.3f}"
+        key = obj.cache_key(start) + f"|{self.hoop.mode}|{fabric.id}|{hidden_key}"
         r = self._cache.get((obj.id, key))
         if r is None:
             r = obj.runs(start)
@@ -542,7 +604,7 @@ class Design:
         for i, obj in enumerate(vis):
             if progress:
                 progress(i, len(vis))
-            runs = self.object_runs(obj, cur)
+            runs = self.object_runs(obj, cur, vis[i + 1:])
             if not runs:
                 continue
             if block is None or block.thread.hex != obj.thread.hex:

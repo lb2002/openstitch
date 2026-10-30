@@ -18,7 +18,7 @@ from shapely.ops import unary_union
 from shapely.prepared import prep
 from skimage.morphology import skeletonize
 
-from .geom import Pt, clean, dist, polygons_of, resample_path, subdivide
+from .geom import Pt, clean, dist, polygons_of, resample_path, resample_uniform, subdivide
 
 RES = 0.16  # mm pro Pixel (2.5x schneller bei identischer Stickgenauigkeit)
 
@@ -194,7 +194,7 @@ def _rails_for_branch(poly, prepared_poly, br: Branch, spacing: float, pull_comp
             pts = list(reversed(extend(pts[0], pts[step_k], min(br.hw[0], 2.5)))) + pts
         if br.leaf_end and step_k >= 1:
             pts = pts + extend(pts[-1], pts[-1 - step_k], min(br.hw[-1], 2.5))
-    path = resample_path(pts, spacing / 2.0, closed=closed)
+    path = resample_uniform(pts, spacing / 2.0, closed=closed)
     if len(path) < 2:
         return []
     arr = np.array(path)

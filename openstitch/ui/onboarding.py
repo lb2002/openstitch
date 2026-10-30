@@ -29,6 +29,7 @@ from shapely.geometry import LineString, Point, Polygon
 from ..core.design import Design, FillObject, HOOPS, RunObject, SatinObject
 from ..core.stitchplan import Thread
 from ..text import TextObject
+from . import theme
 
 
 # ===========================================================================
@@ -40,13 +41,14 @@ def studio_icon(kind: str, size: int = 18) -> QIcon:
     p = QPainter(pix)
     p.setRenderHint(QPainter.Antialiasing, True)
 
-    c_blue = QColor("#8ab4f8")
-    c_gold = QColor("#fdd663")
-    c_green = QColor("#81c995")
-    c_red = QColor("#f28b82")
-    c_purple = QColor("#c58af9")
-    c_cyan = QColor("#78d9ec")
-    c_light = QColor("#e8eaed")
+    th = theme.current()
+    c_blue = QColor(th.icon_blue)
+    c_gold = QColor(th.icon_gold)
+    c_green = QColor(th.icon_green)
+    c_red = QColor(th.icon_red)
+    c_purple = QColor(th.icon_purple)
+    c_cyan = QColor(th.icon_cyan)
+    c_light = QColor(th.icon_light)
 
     s = float(size)
     m = s * 0.16
@@ -233,6 +235,91 @@ def studio_icon(kind: str, size: int = 18) -> QIcon:
         p.setPen(QPen(c_light, 1.7, Qt.SolidLine, Qt.RoundCap))
         p.drawEllipse(QPointF(s * 0.44, s * 0.44), s * 0.24, s * 0.24)
         p.drawLine(QPointF(s * 0.62, s * 0.62), QPointF(s * 0.82, s * 0.82))
+
+    elif kind == "home":
+        p.setPen(QPen(c_light, 1.7, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawPolyline(QPolygonF([QPointF(m, s * 0.5), QPointF(s * 0.5, m), QPointF(s - m, s * 0.5)]))
+        p.drawPolyline(QPolygonF([QPointF(s * 0.26, s * 0.46), QPointF(s * 0.26, s - m),
+                                  QPointF(s * 0.74, s - m), QPointF(s * 0.74, s * 0.46)]))
+
+    elif kind == "open":
+        p.setPen(QPen(c_gold, 1.6, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        path = QPainterPath()
+        path.moveTo(m, s * 0.8)
+        path.lineTo(m, s * 0.24)
+        path.lineTo(s * 0.4, s * 0.24)
+        path.lineTo(s * 0.5, s * 0.36)
+        path.lineTo(s * 0.8, s * 0.36)
+        path.lineTo(s * 0.8, s * 0.48)
+        path.moveTo(m, s * 0.8)
+        path.lineTo(s * 0.3, s * 0.48)
+        path.lineTo(s - m * 0.6, s * 0.48)
+        path.lineTo(s * 0.72, s * 0.8)
+        path.closeSubpath()
+        p.drawPath(path)
+
+    elif kind == "save":
+        p.setPen(QPen(c_blue, 1.6, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawRoundedRect(QRectF(m, m, s - 2 * m, s - 2 * m), 2.5, 2.5)
+        p.drawRect(QRectF(s * 0.32, m, s * 0.36, s * 0.24))
+        p.drawRect(QRectF(s * 0.28, s * 0.58, s * 0.44, s - m - s * 0.58))
+
+    elif kind in ("undo", "redo"):
+        p.save()
+        if kind == "redo":
+            p.translate(s, 0)
+            p.scale(-1, 1)
+        p.setPen(QPen(c_light, 1.8, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        path = QPainterPath()
+        path.moveTo(s * 0.26, s * 0.42)
+        path.lineTo(s * 0.62, s * 0.42)
+        path.cubicTo(s * 0.92, s * 0.42, s * 0.92, s * 0.8, s * 0.6, s * 0.8)
+        path.lineTo(s * 0.42, s * 0.8)
+        p.drawPath(path)
+        p.drawPolyline(QPolygonF([QPointF(s * 0.42, s * 0.24), QPointF(s * 0.24, s * 0.42), QPointF(s * 0.42, s * 0.6)]))
+        p.restore()
+
+    elif kind == "palette":
+        p.setPen(QPen(c_light, 1.6, Qt.SolidLine, Qt.RoundCap))
+        p.drawEllipse(QPointF(s * 0.5, s * 0.5), s * 0.36, s * 0.36)
+        p.setPen(Qt.NoPen)
+        for (dx, dy), col in (((0.36, 0.38), c_red), ((0.6, 0.34), c_gold), ((0.68, 0.56), c_green), ((0.42, 0.64), c_blue)):
+            p.setBrush(col)
+            p.drawEllipse(QPointF(s * dx, s * dy), s * 0.075, s * 0.075)
+
+    elif kind in ("up", "down"):
+        p.setPen(QPen(c_light, 1.9, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        a, b = (0.62, 0.38) if kind == "up" else (0.38, 0.62)
+        p.drawPolyline(QPolygonF([QPointF(s * 0.26, s * a), QPointF(s * 0.5, s * b), QPointF(s * 0.74, s * a)]))
+
+    elif kind == "eye":
+        p.setPen(QPen(c_light, 1.6, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        path = QPainterPath()
+        path.moveTo(m * 0.7, s * 0.5)
+        path.quadTo(s * 0.5, s * 0.14, s - m * 0.7, s * 0.5)
+        path.quadTo(s * 0.5, s * 0.86, m * 0.7, s * 0.5)
+        p.drawPath(path)
+        p.setBrush(c_light)
+        p.drawEllipse(QPointF(s * 0.5, s * 0.5), s * 0.11, s * 0.11)
+
+    elif kind == "copy":
+        p.setPen(QPen(c_light, 1.6, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawRoundedRect(QRectF(s * 0.36, s * 0.36, s * 0.46, s * 0.46), 2, 2)
+        p.drawPolyline(QPolygonF([QPointF(s * 0.24, s * 0.64), QPointF(s * 0.18, s * 0.64), QPointF(s * 0.18, s * 0.18),
+                                  QPointF(s * 0.64, s * 0.18), QPointF(s * 0.64, s * 0.24)]))
+
+    elif kind == "trash":
+        p.setPen(QPen(c_red, 1.6, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawLine(QPointF(s * 0.2, s * 0.28), QPointF(s * 0.8, s * 0.28))
+        p.drawLine(QPointF(s * 0.4, s * 0.28), QPointF(s * 0.42, s * 0.16))
+        p.drawLine(QPointF(s * 0.6, s * 0.28), QPointF(s * 0.58, s * 0.16))
+        p.drawPolyline(QPolygonF([QPointF(s * 0.27, s * 0.28), QPointF(s * 0.32, s * 0.84),
+                                  QPointF(s * 0.68, s * 0.84), QPointF(s * 0.73, s * 0.28)]))
+
+    elif kind == "usb":
+        p.setPen(QPen(c_blue, 1.6, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawRoundedRect(QRectF(s * 0.28, s * 0.36, s * 0.44, s * 0.48), 3, 3)
+        p.drawRect(QRectF(s * 0.38, s * 0.14, s * 0.24, s * 0.22))
 
     p.end()
     return QIcon(pix)

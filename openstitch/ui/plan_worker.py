@@ -30,8 +30,10 @@ class PlanBuilder(QObject):
     def _detach(design: Design) -> Design:
         """Flache Kopien der Objekte: Parameter/Geometrien sind unveränderlich bzw. werden nur
         ersetzt, so kann der Haupt-Thread weiter editieren, ohne die Berechnung zu stören."""
-        return Design(objects=[copy.copy(o) for o in design.objects], hoop=design.hoop,
-                      settings=copy.copy(design.settings), name=design.name, _cache=design._cache)
+        d = copy.copy(design)       # so kommen auch künftige Felder (z. B. der Stoff) mit
+        d.objects = [copy.copy(o) for o in design.objects]
+        d.settings = copy.copy(design.settings)
+        return d
 
     def request(self, design: Design) -> int:
         with self._lock:

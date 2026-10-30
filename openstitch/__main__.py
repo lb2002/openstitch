@@ -88,7 +88,7 @@ def main():
     app.processEvents()
 
     def _finish_startup():
-        win._load_starter_design()
+        win.startup()
         splash.finish(win)
         win.setWindowState((win.windowState() & ~Qt.WindowMinimized) | Qt.WindowActive)
         win.raise_()

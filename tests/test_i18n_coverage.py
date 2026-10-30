@@ -159,7 +159,7 @@ def test_main_window_and_inspector_fully_translated():
         idx = next(i for i in range(win.cmb_lang.count()) if win.cmb_lang.itemData(i) == "en")
         win.cmb_lang.setCurrentIndex(idx)
         assert i18n.current_lang() == "en"
-        assert win.lbl_hoop_strategy.text().startswith("Strategy: ")
+        assert win.cmb_hoop.toolTip().startswith("Strategy: ")
         assert "Fit to hoop" in [a.text() for a in win.left_rail.actions()]
         for obj in (fill, satin, run, text, None):
             win.canvas.selected = obj

@@ -162,11 +162,6 @@ class AutoDigitizeDialog(QDialog):
         self.cb_bg.setChecked(True)
         form.addRow("", self.cb_bg)
 
-        self.cmb_fabric = QComboBox()
-        for fab in ("normal", "strick", "frottee", "cap", "leicht"):
-            self.cmb_fabric.addItem(tr(f"fabric_opt_{fab}"), fab)
-        form.addRow(tr("lbl_fabric_type"), self.cmb_fabric)
-
         self.sp_density = QDoubleSpinBox()
         self.sp_density.setRange(0.28, 1.0)
         self.sp_density.setSingleStep(0.02)
@@ -238,7 +233,6 @@ class AutoDigitizeDialog(QDialog):
             width_mm=self.sp_width.value(),
             colors=self.sp_colors.value(),
             remove_background=self.cb_bg.isChecked(),
-            fabric=self.cmb_fabric.currentData(),
             density=self.sp_density.value(),
             satin_max_mm=self.sp_satin.value(),
             min_area_mm2=self.sp_min_area.value(),

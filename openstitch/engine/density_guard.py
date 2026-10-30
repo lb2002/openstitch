@@ -20,6 +20,7 @@ from collections import defaultdict
 from ..core.stitchplan import Cmd, Stitch, StitchPlan
 
 
+LOCK_GUARD = 5          # so viele Stiche an den Laufenden sind geschützt
 MAX_BRIDGE_MM = 2.5     # so lang darf ein Stich werden, der einen gesättigten Einstich überbrückt
 
 
@@ -62,7 +63,10 @@ def optimize_stitches_for_melco(
                 continue
 
         cell = (int(math.floor(s.x / cell_size_mm)), int(math.floor(s.y / cell_size_mm)))
-        if grid[cell] >= max_punctures_per_cell and not is_last_of_run:
+        # Anfang und Ende eines Laufs bleiben: Dort sitzen die Vernähstiche, die den Faden halten
+        near_end = any(stitches[j].cmd != Cmd.STITCH
+                       for j in range(max(0, i - LOCK_GUARD), min(len(stitches), i + LOCK_GUARD + 1)))
+        if grid[cell] >= max_punctures_per_cell and not is_last_of_run and not near_end:
             # Zelle ist bereits gesättigt → Einstich überspringen, schont Stoff & Faden.
             # Aber nur, wenn der nächste Stich dadurch nicht lang wird: sonst entsteht auf
             # mehrfach abgefahrenen Linien ein Riesenstich quer über das Motiv.

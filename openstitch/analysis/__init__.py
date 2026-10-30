@@ -9,7 +9,7 @@
 Die Physik ist ein Modell mit Erfahrungswerten: Es zeigt verlässlich Trends und Problemstellen,
 ersetzt aber keinen echten Probestick.
 """
-from .fabric import DEFAULT_FABRIC, FABRICS, Fabric, fabric_by_id
+from ..core.fabric import DEFAULT_FABRIC, FABRICS, Fabric, fabric_by_id
 from .report import Finding, Report, simulate_stitchout
 
 __all__ = ["DEFAULT_FABRIC", "FABRICS", "Fabric", "Finding", "Report", "fabric_by_id", "simulate_stitchout"]
