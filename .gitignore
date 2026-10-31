@@ -42,3 +42,6 @@ dist/
 
 # Claude Code worktrees / local settings
 .claude/
+
+# Zufallstests
+.hypothesis/

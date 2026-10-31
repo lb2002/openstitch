@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.4.0
+
+### Virtual stitch-out
+- **Check design (`F7`) replaces the old Doctor.** You get a score out of 100, findings in plain language, a Show button that jumps to the spot and a Fix button where a one-click fix exists.
+- **Fabric pull simulation.** A spring model shows how thread tension pulls the fabric in, with a preview you can exaggerate. Earlier objects move when later ones are stitched, so it can warn about gaps between a fill and its outline. Until you calibrate a fabric, this is an estimate.
+- **Fixed rules and estimates are labelled.** Findings from the stitches are exact; only fabric pull is an estimate.
+- **Calibration with real fabric.** Stitch a small test bar, measure it, enter the width. The simulation and pull compensation then use the measured value for that fabric.
+- **Export check.** Every machine format is written, read back with an independent parser and compared stitch by stitch.
+- **Command line:** `python -m openstitch.analysis design.dst --fabric jersey --formats`.
+
+### Stitch quality fixes found by the simulator
+- **Satin density now works.** Spacing above about 0.4 mm had no effect, and needle holes along satin edges were uneven.
+- Split satin no longer exceeds the maximum stitch length (it could by 17 %).
+- The density guard can no longer turn repeated lines into 13 mm stitches, and it keeps lock stitches at run ends.
+- Degenerate column lines can no longer throw stitches far off the shape.
+- Hidden travel along a shape's edge no longer cuts across holes at the ring's start corner.
+- **VP3 files with an accented thread name (such as Grün) were corrupted** and could not be read back. Thread names are now written in plain characters in all formats.
+- Damaged project files give a clear message instead of crashing plan building.
+
+### New
+- **Real fabric choice** (cotton, denim, cap, piqué, T-shirt, fleece, towel, leather, silk). It sets pull compensation and density, and tells you which stabilizer and needle to use.
+- **Hidden stitches are skipped.** A fill no longer stitches under a later object that fully covers it, which saves stitches and avoids board-stiff spots. It keeps running 1 mm under the edge so no gaps open, and thin objects such as lettering keep their fill.
+- **Send to machine.** Picks the right format for your machine, finds USB sticks, offers short names for older machines, lists the thread order, verifies the saved file and never overwrites silently.
+- **Micro font tuned with a legibility measure.** `l` and `I` now differ, `A`, `e`, `4` have more open counters and `a` is easier to tell from `o`. From 3 mm every counter stays open; at 2.5 mm `e` and `4` are tight.
+- Fixed: the text dialog refused heights under 4 mm, so 2.5 mm lettering could only be set afterwards. It now has a live preview and suggests the Micro font for small text.
+
+### Easier to use
+- **Start page** with four clear ways in, sample designs and recent files.
+- **The window fits a laptop.** It needed 2212 px of width and now fits 1280 px.
+- **Light theme** next to the dark one, and a redesigned layout with a shorter toolbar.
+- **One Open dialog** for projects, embroidery files, SVG and images.
+- **Autosave with crash recovery**, and a crash report instead of a silent exit.
+- **Five more languages:** Italian, Portuguese, Dutch, Polish and Turkish. These are machine translations, so corrections from native speakers are very welcome.
+- The app starts in your system language, otherwise English. The tour is translated.
+- Help menu: keyboard shortcuts, report a problem, about.
+- Your machine choice is remembered.
+
+### Project
+- Random shape tests, damaged file tests and a monkey test that clicks through the real window. Long versions run weekly.
+- Linux download in releases. Every pull request now builds and self-tests the app on Windows, macOS (Apple Silicon and Intel) and Linux.
+- The README explains how to open the unsigned app on a Mac.
+
 ## v0.3.0 (2026-10-28)
 
 ### New

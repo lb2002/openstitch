@@ -22,12 +22,15 @@ from __future__ import annotations
 
 import math
 
+from shapely.geometry import LineString, Point
+
 from .geom import Pt, dist, resample_path
 from .running import bean_stitch
 
 CORNER_DEG = 40.0        # ab dieser Richtungsänderung gilt ein Stützpunkt als Ecke
                          # (Gehrung schon ab 40° – sauberer als reine Glättung)
 MITRE_MAX_DEG = 130.0    # bis hierhin weiche Gehrung, darüber beschnittene Gehrung
+MAX_REACH = 2.5          # weiteste Gehrung (× halbe Breite), bevor ein Querschnitt als entartet gilt
 MITRE_LIMIT = 1.45       # max. Gehrungslänge (× halbe Breite) auf der Aussenseite
 MIN_SATIN_W = 0.7        # schmaler → Dreifachstich statt Satin
 UNDERLAY_MIN_W = 1.0     # schmaler → keine Unterlage (würde nur auftragen)
@@ -68,7 +71,8 @@ def column_runs(centerline: list[Pt], width: float | list[float], spacing: float
             ws.reverse()
     if max(ws) < MIN_SATIN_W:
         return [bean_run(pts, run_len, closed)]
-    cross = _cross_sections(pts, ws, spacing, pull_comp, closed)
+    cross = _drop_escapes(_cross_sections(pts, ws, spacing, pull_comp, closed), pts,
+                          max(ws) / 2 * MAX_REACH + pull_comp + 0.25)
     if len(cross) < 2:
         return [bean_run(pts, run_len, closed)]
     wavg = sum(ws) / len(ws)
@@ -80,6 +84,14 @@ def column_runs(centerline: list[Pt], width: float | list[float], spacing: float
     else:
         run = _zigzag(cross, spacing, max_stitch)
     return [run] if len(run) >= 2 else []
+
+
+def _drop_escapes(cross, pts, reach: float):
+    """Entartete Linien (Umkehr kürzer als die Säulenbreite) können Gehrungen weit über die Form
+    hinausschieben. Solche Querschnitte entfallen, statt Stiche neben das Motiv zu setzen."""
+    line = LineString(pts)
+    return [q for q in cross
+            if line.distance(Point(q[1])) <= reach and line.distance(Point(q[2])) <= reach]
 
 
 def bean_run(pts: list[Pt], run_len: float = 1.0, closed: bool = False) -> list[Pt]:

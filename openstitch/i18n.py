@@ -1,23 +1,42 @@
-"""Mehrsprachige Lokalisierung (DE, EN, FR, ES) für OpenStitch Studio."""
+"""Mehrsprachige Lokalisierung für OpenStitch Studio.
+
+DE, EN, FR und ES stehen in `_TABLE`. Weitere Sprachen liegen je als eigene Datei in `locales/` und
+werden erst geladen, wenn man sie wählt; fehlende Texte fallen auf Englisch zurück."""
 from __future__ import annotations
 
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QLocale, QSettings
 
 LANGUAGES: list[tuple[str, str]] = [
     ("de", "🇩🇪 Deutsch"),
     ("en", "🇬🇧 English"),
     ("fr", "🇫🇷 Français"),
     ("es", "🇪🇸 Español"),
+    ("it", "🇮🇹 Italiano"),
+    ("pt", "🇵🇹 Português"),
+    ("nl", "🇳🇱 Nederlands"),
+    ("pl", "🇵🇱 Polski"),
+    ("tr", "🇹🇷 Türkçe"),
 ]
+_SUPPORTED = {code for code, _ in LANGUAGES}
+_COLUMN = {"de": 0, "en": 1, "fr": 2, "es": 3}
+_extra_cache: dict[str, dict[str, str]] = {}
 
 _cur_lang = ["de"]
 
 
+def extra_table(lang: str) -> dict[str, str]:
+    """Texte einer Sprache aus `locales/`, geladen erst beim ersten Gebrauch."""
+    if lang not in _extra_cache:
+        from .locales import TABLES
+        _extra_cache[lang] = TABLES.get(lang, {})
+    return _extra_cache[lang]
+
+
 def init_lang() -> str:
     s = QSettings("OpenStitch", "OpenStitchStudio")
-    lang = s.value("ui/lang", "de", type=str)
-    if lang not in ("de", "en", "fr", "es"):
-        lang = "de"
+    lang = s.value("ui/lang", "", type=str) or QLocale.system().name()[:2]
+    if lang not in _SUPPORTED:
+        lang = "en"     # Beim ersten Start die Sprache des Systems, sonst Englisch
     _cur_lang[0] = lang
     return lang
 
@@ -27,7 +46,7 @@ def current_lang() -> str:
 
 
 def set_lang(lang: str) -> None:
-    if lang in ("de", "en", "fr", "es"):
+    if lang in _SUPPORTED:
         _cur_lang[0] = lang
         s = QSettings("OpenStitch", "OpenStitchStudio")
         s.setValue("ui/lang", lang)
@@ -49,13 +68,12 @@ _TABLE: dict[str, tuple[str, str, str, str]] = {
     "tb_svg": ("SVG", "SVG", "SVG", "SVG"),
     "tb_export": ("Export", "Export", "Exporter", "Exportar"),
     "tb_pdf": ("PDF", "PDF", "PDF", "PDF"),
-    "tb_auto": ("Auto-Digitizer", "Auto-Digitizer", "Auto-Numériseur", "Auto-Digitalizador"),
+    "tb_auto": ("Bild → Stiche", "Image to stitches", "Image → points", "Imagen a puntadas"),
     "tb_photo": ("PhotoStitch", "PhotoStitch", "PhotoStitch", "PhotoStitch"),
     "tb_text": ("Schrift", "Lettering", "Lettrage", "Texto"),
     "tb_applique": ("Appliqué", "Appliqué", "Appliqué", "Aplique"),
     "tb_puff": ("3D-Puff", "3D-Puff", "3D-Puff", "3D-Puff"),
     "tb_transfer": ("Transfer", "Transfer", "Transfert", "Transferir"),
-    "tb_doctor": ("Doktor", "Doctor", "Docteur", "Doctor"),
     "tb_tour": ("Rundgang", "Tour", "Visite", "Guía"),
 
     # Kontextleiste über der Leinwand
@@ -109,13 +127,13 @@ _TABLE: dict[str, tuple[str, str, str, str]] = {
     ),
 
     # Linkes Dock (Garnkatalog & Farben)
-    "dock_palette": ("Garnfarben && Nadel-Sequenz", "Thread Catalog && Needle Sequence", "Catalogue Fils && Aiguilles", "Catálogo Hilos && Agujas"),
+    "dock_palette": ("Garne && Farben", "Threads && Colors", "Fils && couleurs", "Hilos y colores"),
     "lbl_catalog": ("Garnkatalog:", "Thread Catalog:", "Catalogue :", "Catálogo:"),
     "lbl_seq": ("Farb- & Nadel-Sequenz im Design:", "Design Thread & Needle Sequence:", "Séquence de couleurs & aiguilles :", "Secuencia de colores y agujas:"),
     "needle": ("Nadel", "Needle", "Aiguille", "Aguja"),
 
     # Rechtes Dock (Ebenen & Inspektor)
-    "dock_right": ("Ebenen && Objekt-Inspektor", "Layers && Object Inspector", "Calques && Inspecteur d'Objets", "Capas && Inspector de Objetos"),
+    "dock_right": ("Ebenen && Einstellungen", "Layers && Settings", "Calques && réglages", "Capas y ajustes"),
     "btn_visible": ("👁 Sichtbar", "👁 Visible", "👁 Visible", "👁 Visible"),
     "btn_copy": ("⧉ Kopie", "⧉ Copy", "⧉ Copier", "⧉ Copiar"),
     "lbl_inspector": ("Objekt-Parameter (Live-Neuberechnung):", "Object Parameters (Live Recalculation):", "Paramètres de l'objet (Calcul en direct) :", "Parámetros del objeto (Cálculo en vivo):"),
@@ -149,8 +167,10 @@ def tr(key: str) -> str:
     row = _TABLE.get(key)
     if not row:
         return key
-    idx = {"de": 0, "en": 1, "fr": 2, "es": 3}.get(_cur_lang[0], 0)
-    return row[idx]
+    lang = _cur_lang[0]
+    if lang in _COLUMN:
+        return row[_COLUMN[lang]]
+    return extra_table(lang).get(key, row[1])
 
 
 _TABLE.update({
@@ -170,7 +190,8 @@ _TABLE.update({
     "m_applique": ("Aus Fläche Applikation (Appliqué) erzeugen", "Create appliqué from shape", "Créer un appliqué depuis la forme", "Crear aplique desde la forma"),
     "m_puff": ("3D-Puff-Schaumstoff-Modus für Satin umschalten", "Toggle 3D puff foam mode for satin", "Activer le mode mousse 3D pour le satin", "Activar modo espuma 3D para satén"),
     "m_transfer": ("Maschinen-Transfer / Diskette / USB / NetBridge …", "Machine transfer / floppy / USB / NetBridge …", "Transfert machine / disquette / USB / NetBridge …", "Transferencia a máquina / disquete / USB / NetBridge …"),
-    "m_doctor": ("Qualitäts- & Maschinen-Doktor (Prüfung)", "Quality & Machine Doctor (check)", "Docteur qualité & machine (contrôle)", "Doctor de calidad y máquina (revisión)"),
+    "m_doctor": ("Design prüfen (virtueller Probestick)", "Check design (virtual stitch-out)",
+                 "Vérifier le motif (essai virtuel)", "Revisar diseño (prueba virtual)"),
     "m_optimize": ("Farben minimieren (Nadelwechsel sparen)", "Minimize colors (save needle changes)", "Minimiser les couleurs (moins de changements)", "Minimizar colores (menos cambios de aguja)"),
     "m_tour": ("Interaktiver Studio-Rundgang (Onboarding) …", "Interactive studio tour (onboarding) …", "Visite interactive du studio …", "Guía interactiva del estudio …"),
     "m_restore_logo": ("Offizielles OpenStitch-Logo wiederherstellen", "Restore official OpenStitch logo", "Restaurer le logo officiel OpenStitch", "Restaurar el logotipo oficial de OpenStitch"),
@@ -226,64 +247,347 @@ _TABLE.update({
 })
 
 
-# Qualitäts-Doktor
 _TABLE.update({
-    "doc_empty": ("Das Design enthält noch keine Stiche.", "The design has no stitches yet.",
-                  "Le motif ne contient encore aucun point.", "El diseño aún no tiene puntadas."),
-    "doc_hoop_round": (
-        "⚠ RAHMEN-KOLLISIONSGEFAHR: Das Motiv (Radius {r} mm) reicht an den Rand des Rundrahmens ({hoop}, Radius {hr} mm). "
-        "Wähle einen grösseren Rahmen oder zentriere/verkleinere das Motiv.",
-        "⚠ HOOP COLLISION RISK: the design (radius {r} mm) reaches the edge of the round hoop ({hoop}, radius {hr} mm). "
-        "Pick a larger hoop or centre/shrink the design.",
-        "⚠ RISQUE DE COLLISION AVEC LE CADRE : le motif (rayon {r} mm) atteint le bord du cadre rond ({hoop}, rayon {hr} mm). "
-        "Choisissez un cadre plus grand ou centrez/réduisez le motif.",
-        "⚠ RIESGO DE CHOQUE CON EL BASTIDOR: el diseño (radio {r} mm) llega al borde del bastidor redondo ({hoop}, radio {hr} mm). "
-        "Elige un bastidor mayor o centra/reduce el diseño."),
-    "doc_hoop_rect": (
-        "⚠ RAHMEN-KOLLISIONSGEFAHR: Das Motiv ({w}×{h} mm) überschreitet das sichere Stickfeld des Rahmens ({hw}×{hh} mm).",
-        "⚠ HOOP COLLISION RISK: the design ({w}×{h} mm) exceeds the hoop's safe sewing field ({hw}×{hh} mm).",
-        "⚠ RISQUE DE COLLISION AVEC LE CADRE : le motif ({w}×{h} mm) dépasse la zone de broderie sûre du cadre ({hw}×{hh} mm).",
-        "⚠ RIESGO DE CHOQUE CON EL BASTIDOR: el diseño ({w}×{h} mm) supera el área segura del bastidor ({hw}×{hh} mm)."),
-    "doc_colors": (
-        "⚠ ZU VIELE FARBEN: Das Design verwendet {n} Garnfarben, die Maschine hat {needles} Nadeln. "
-        "Reduziere die Farben oder plane einen manuellen Garnwechsel ein.",
-        "⚠ TOO MANY COLOURS: the design uses {n} thread colours but the machine has {needles} needles. "
-        "Reduce colours or plan a manual thread change.",
-        "⚠ TROP DE COULEURS : le motif utilise {n} couleurs de fil, la machine a {needles} aiguilles. "
-        "Réduisez les couleurs ou prévoyez un changement de fil manuel.",
-        "⚠ DEMASIADOS COLORES: el diseño usa {n} colores de hilo y la máquina tiene {needles} agujas. "
-        "Reduce los colores o planifica un cambio de hilo manual."),
-    "doc_small_text": (
-        "⚠ KLEINE SCHRIFT ({name}, {h} mm): Umriss-Schriften unter 4.5 mm laufen auf Stoff oft zu. "
-        "Tipp: Für kleine Schrift die Schriftart „OpenStitch Micro“ verwenden.",
-        "⚠ SMALL LETTERING ({name}, {h} mm): outline fonts below 4.5 mm tend to fill in on fabric. "
-        "Tip: use the “OpenStitch Micro” font for small lettering.",
-        "⚠ PETIT TEXTE ({name}, {h} mm) : sous 4,5 mm, les polices à contour se bouchent souvent sur le tissu. "
-        "Astuce : utilisez la police « OpenStitch Micro » pour les petits textes.",
-        "⚠ TEXTO PEQUEÑO ({name}, {h} mm): las fuentes de contorno por debajo de 4,5 mm suelen cerrarse en la tela. "
-        "Consejo: usa la fuente «OpenStitch Micro» para texto pequeño."),
-    "doc_satin_density": (
-        "⚠ HOHE SATIN-DICHTE ({name}, {sp} mm): Dichte unter 0.28 mm kann zu Fadenbruch führen (empfohlen: 0.36–0.42 mm).",
-        "⚠ HIGH SATIN DENSITY ({name}, {sp} mm): spacing below 0.28 mm can break threads (recommended: 0.36–0.42 mm).",
-        "⚠ DENSITÉ SATIN ÉLEVÉE ({name}, {sp} mm) : un espacement sous 0,28 mm peut casser le fil (conseillé : 0,36–0,42 mm).",
-        "⚠ DENSIDAD DE SATÉN ALTA ({name}, {sp} mm): un espaciado inferior a 0,28 mm puede romper el hilo "
-        "(recomendado: 0,36–0,42 mm)."),
-    "doc_density": (
-        "⚠ DICHTE-SPITZEN: An {n} Stellen (1×1 mm) liegen mehr als 14 Stiche übereinander "
-        "(Strg+H zeigt die Heatmap).",
-        "⚠ DENSITY HOT SPOTS: {n} places (1×1 mm) have more than 14 stitches on top of each other "
-        "(Ctrl+H shows the heatmap).",
-        "⚠ PICS DE DENSITÉ : {n} zones (1×1 mm) comptent plus de 14 points superposés "
-        "(Ctrl+H affiche la carte de densité).",
-        "⚠ PICOS DE DENSIDAD: en {n} puntos (1×1 mm) hay más de 14 puntadas superpuestas "
-        "(Ctrl+H muestra el mapa de calor)."),
-    "doc_ok": (
-        "✅ Keine Probleme gefunden ({st} Stiche, {n} von {needles} Nadeln, sicher im Rahmen {hoop}).",
-        "✅ No problems found ({st} stitches, {n} of {needles} needles, safely inside {hoop}).",
-        "✅ Aucun problème détecté ({st} points, {n} aiguilles sur {needles}, bien dans le cadre {hoop}).",
-        "✅ No se encontraron problemas ({st} puntadas, {n} de {needles} agujas, dentro del bastidor {hoop})."),
+    "ph_text": ("Dein Text", "Your text", "Votre texte", "Tu texto"),
+    "tip_use_micro": ("Für so kleine Schrift besser „OpenStitch Micro“ verwenden (ein Klick hier)",
+                      "For lettering this small, use “OpenStitch Micro” (click here)",
+                      "Pour un texte aussi petit, utilisez « OpenStitch Micro » (cliquez ici)",
+                      "Para un texto tan pequeño, usa «OpenStitch Micro» (haz clic aquí)"),
 })
 
+# Hilfe, Fehlerbericht
+_TABLE.update({
+    "act_shortcuts": ("Tastenkürzel …", "Keyboard shortcuts …", "Raccourcis clavier …", "Atajos de teclado …"),
+    "act_report": ("Problem melden …", "Report a problem …", "Signaler un problème …", "Informar de un problema …"),
+    "act_about": ("Über OpenStitch …", "About OpenStitch …", "À propos d'OpenStitch …", "Acerca de OpenStitch …"),
+    "about_text": ("Freie Stick- und Digitalisier-Software. Lizenz: AGPL-3.0, der Quellcode ist frei verfügbar.",
+                   "Free embroidery and digitizing software. License: AGPL-3.0, the source code is freely available.",
+                   "Logiciel libre de broderie et de numérisation. Licence : AGPL-3.0, le code source est librement disponible.",
+                   "Software libre de bordado y digitalización. Licencia: AGPL-3.0, el código fuente está disponible."),
+    "keys_title": ("Tastenkürzel", "Keyboard shortcuts", "Raccourcis clavier", "Atajos de teclado"),
+    "key_select": ("Auswählen und verschieben", "Select and move", "Sélectionner et déplacer", "Seleccionar y mover"),
+    "key_nodes": ("Knoten bearbeiten", "Edit nodes", "Modifier les nœuds", "Editar nodos"),
+    "key_fill": ("Fläche zeichnen", "Draw fill", "Dessiner un remplissage", "Dibujar relleno"),
+    "key_satin": ("Satinsäule zeichnen", "Draw satin column", "Dessiner une colonne satin", "Dibujar columna de satén"),
+    "key_run": ("Steppstich zeichnen", "Draw running stitch", "Dessiner un point droit", "Dibujar puntada recta"),
+    "key_finish": ("Zeichnen beenden", "Finish drawing", "Terminer le dessin", "Terminar el dibujo"),
+    "key_cancel": ("Zeichnen abbrechen", "Cancel drawing", "Annuler le dessin", "Cancelar el dibujo"),
+    "key_zoom": ("Zoomen", "Zoom", "Zoomer", "Ampliar"),
+    "key_pan": ("Ansicht verschieben", "Pan the view", "Déplacer la vue", "Desplazar la vista"),
+    "key_wheel": ("Mausrad", "Mouse wheel", "Molette", "Rueda del ratón"),
+    "key_middle": ("Mittlere Maustaste", "Middle mouse button", "Bouton central", "Botón central"),
+    "crash_title": ("Das hätte nicht passieren dürfen", "That should not have happened", "Cela n'aurait pas dû arriver",
+                    "Esto no debería haber pasado"),
+    "crash_text": ("OpenStitch hat einen Fehler bemerkt. Deine Arbeit wurde gesichert und du kannst weitermachen.\n\n"
+                   "Wenn du das Problem melden möchtest, hänge bitte diese Datei an:\n{}",
+                   "OpenStitch ran into an error. Your work was saved and you can carry on.\n\n"
+                   "If you would like to report it, please attach this file:\n{}",
+                   "OpenStitch a rencontré une erreur. Votre travail a été sauvegardé et vous pouvez continuer.\n\n"
+                   "Pour la signaler, joignez ce fichier :\n{}",
+                   "OpenStitch encontró un error. Tu trabajo se guardó y puedes continuar.\n\n"
+                   "Si quieres informar del problema, adjunta este archivo:\n{}"),
+})
+
+# An die Maschine senden
+_TABLE.update({
+    "exp_title": ("An die Maschine senden", "Send to machine", "Envoyer à la machine", "Enviar a la máquina"),
+    "exp_heading": ("Fertig zum Sticken?", "Ready to stitch?", "Prêt à broder ?", "¿Listo para bordar?"),
+    "exp_facts": ("{st} Stiche · {colors} Farben · {w} × {h} mm", "{st} stitches · {colors} colors · {w} × {h} mm",
+                  "{st} points · {colors} couleurs · {w} × {h} mm", "{st} puntadas · {colors} colores · {w} × {h} mm"),
+    "exp_format": ("Dateiformat:", "File format:", "Format de fichier :", "Formato de archivo:"),
+    "exp_recommended": ("{} (empfohlen)", "{} (recommended)", "{} (recommandé)", "{} (recomendado)"),
+    "exp_name": ("Dateiname:", "File name:", "Nom du fichier :", "Nombre de archivo:"),
+    "exp_short": ("Kurzer Name für ältere Maschinen", "Short name for older machines",
+                  "Nom court pour machines anciennes", "Nombre corto para máquinas antiguas"),
+    "exp_short_tip": ("Viele ältere Maschinen zeigen nur 8 Zeichen ohne Umlaute an.",
+                      "Many older machines only show 8 plain characters.",
+                      "Beaucoup de machines anciennes n'affichent que 8 caractères simples.",
+                      "Muchas máquinas antiguas solo muestran 8 caracteres simples."),
+    "exp_where": ("Speichern auf:", "Save to:", "Enregistrer sur :", "Guardar en:"),
+    "exp_usb": ("USB-Stick: {}", "USB stick: {}", "Clé USB : {}", "Memoria USB: {}"),
+    "exp_browse": ("Ordner …", "Folder …", "Dossier …", "Carpeta …"),
+    "exp_refresh": ("Aktualisieren", "Refresh", "Actualiser", "Actualizar"),
+    "exp_threads": ("Garnfolge für die Maschine", "Thread order for the machine", "Ordre des fils pour la machine",
+                    "Orden de hilos para la máquina"),
+    "exp_save": ("Speichern", "Save", "Enregistrer", "Guardar"),
+    "exp_done": ("„{name}“ gespeichert und geprüft: {st} Stiche korrekt gelesen. Jetzt den Stick an die Maschine stecken.",
+                 "“{name}” saved and verified: {st} stitches read back correctly. Now plug the stick into your machine.",
+                 "« {name} » enregistré et vérifié : {st} points relus correctement. Branchez la clé sur la machine.",
+                 "«{name}» guardado y verificado: {st} puntadas leídas correctamente. Conecta la memoria a la máquina."),
+    "exp_overwrite": ("„{}“ gibt es dort schon. Ersetzen?", "“{}” already exists there. Replace it?",
+                      "« {} » existe déjà à cet endroit. Le remplacer ?", "«{}» ya existe ahí. ¿Reemplazarlo?"),
+    "exp_done_plain": ("„{name}“ gespeichert.", "“{name}” saved.", "« {name} » enregistré.", "«{name}» guardado."),
+    "exp_failed": ("Speichern fehlgeschlagen: {}", "Could not save: {}", "Échec de l'enregistrement : {}",
+                   "No se pudo guardar: {}"),
+    "btn_close": ("Schliessen", "Close", "Fermer", "Cerrar"),
+})
+
+# Feste Regeln, Schätzungen und Kalibrierung
+_TABLE.update({
+    'chk_tag_rule': ('Feste Regel',
+        'Fixed rule',
+        'Règle fixe',
+        'Regla fija'),
+    'chk_tag_model': ('Schätzung',
+        'Estimate',
+        'Estimation',
+        'Estimación'),
+    'cal_open': ('Mit echtem Stoff kalibrieren …',
+        'Calibrate with real fabric …',
+        'Calibrer avec du vrai tissu …',
+        'Calibrar con tela real …'),
+    'cal_title': ('Stoff kalibrieren',
+        'Calibrate fabric',
+        'Calibrer le tissu',
+        'Calibrar tela'),
+    'cal_intro': ('1. Testbalken laden und mit Stoff, Vlies und Fadenspannung sticken, die du wirklich verwendest.\n2. Breite in der Mitte des Balkens messen. Geplant sind {width} mm.\n3. Messwert eintragen. Simulation und Zugausgleich rechnen dann mit deinem echten Wert.',
+        '1. Load the test bar and stitch it with the fabric, stabilizer and tension you really use.\n2. Measure the width in the middle of the bar. It is planned at {width} mm.\n3. Enter the measurement. The simulation and pull compensation then use your real value.',
+        '1. Chargez la barre de test et brodez-la avec le tissu, le stabilisateur et la tension que vous utilisez vraiment.\n2. Mesurez la largeur au milieu de la barre. Elle est prévue à {width} mm.\n3. Saisissez la mesure. La simulation et la compensation utilisent alors votre valeur réelle.',
+        '1. Carga la barra de prueba y bórdala con la tela, el estabilizador y la tensión que usas de verdad.\n2. Mide el ancho en el centro de la barra. Está prevista de {width} mm.\n3. Introduce la medida. La simulación y la compensación usarán tu valor real.'),
+    'cal_load': ('Testbalken laden',
+        'Load test bar',
+        'Charger la barre de test',
+        'Cargar barra de prueba'),
+    'cal_measured': ('Gemessene Breite:',
+        'Measured width:',
+        'Largeur mesurée :',
+        'Ancho medido:'),
+    'cal_apply': ('Übernehmen',
+        'Apply',
+        'Appliquer',
+        'Aplicar'),
+    'cal_reset': ('Zurücksetzen',
+        'Reset',
+        'Réinitialiser',
+        'Restablecer'),
+    'cal_state_estimate': ('Dieser Stoff ist noch nicht gemessen: Der Stoffzug ist eine Schätzung.',
+        'This fabric has not been measured yet: fabric pull is an estimate.',
+        "Ce tissu n'a pas encore été mesuré : la traction est une estimation.",
+        'Esta tela aún no se ha medido: el tiro es una estimación.'),
+    'cal_state_measured': ('Gemessen: Der Stoffzug ist das {factor}-Fache der Schätzung.',
+        'Measured: fabric pull is {factor} times the estimate.',
+        "Mesuré : la traction vaut {factor} fois l'estimation.",
+        'Medido: el tiro es {factor} veces la estimación.'),
+    'chk_disclaimer': ('Feste Regeln folgen exakt aus den Stichen. Schätzungen zum Stoffzug werden genau, wenn du den Stoff kalibrierst.',
+        'Fixed rules follow exactly from the stitches. Fabric pull estimates become accurate once you calibrate the fabric.',
+        'Les règles fixes découlent exactement des points. Les estimations de traction deviennent précises une fois le tissu calibré.',
+        'Las reglas fijas se derivan exactamente de las puntadas. Las estimaciones del tiro son precisas al calibrar la tela.'),
+})
+
+# Design-Prüfung (virtueller Probestick)
+_TABLE.update({
+    "chk_title": ("Design prüfen", "Check design", "Vérifier le motif", "Revisar diseño"),
+    "chk_running": ("Wird geprüft …", "Checking …", "Vérification …", "Revisando …"),
+    "chk_failed": ("Prüfung fehlgeschlagen", "Check failed", "Échec de la vérification", "Falló la revisión"),
+    "chk_empty": ("Noch keine Stiche", "No stitches yet", "Aucun point pour l'instant", "Aún no hay puntadas"),
+    "chk_again": ("Erneut prüfen", "Check again", "Vérifier à nouveau", "Revisar de nuevo"),
+    "chk_good": ("Bereit zum Sticken", "Ready to stitch", "Prêt à broder", "Listo para bordar"),
+    "chk_ok": ("Stickbar, mit kleinen Risiken", "Stitchable, with small risks", "Brodable, avec de petits risques",
+               "Bordable, con pequeños riesgos"),
+    "chk_bad": ("Besser zuerst überarbeiten", "Better fix this first", "À corriger d'abord", "Mejor corregirlo antes"),
+    "chk_none": ("Keine Probleme gefunden.", "No problems found.", "Aucun problème détecté.",
+                 "No se encontraron problemas."),
+    "chk_facts": ("{st} Stiche · {colors} Farben · {trims} Fadenschnitte · ca. {min} Min. · {thread} m Garn",
+                  "{st} stitches · {colors} colors · {trims} trims · about {min} min · {thread} m thread",
+                  "{st} points · {colors} couleurs · {trims} coupes · env. {min} min · {thread} m de fil",
+                  "{st} puntadas · {colors} colores · {trims} cortes · aprox. {min} min · {thread} m de hilo"),
+    "chk_preview": ("So zieht sich der Stoff zusammen", "How the fabric will pull in",
+                    "Comment le tissu va se resserrer", "Cómo se encogerá la tela"),
+    "chk_boost": ("Effekt verstärken", "Exaggerate effect", "Amplifier l'effet", "Exagerar el efecto"),
+    "chk_show": ("Zeigen", "Show", "Afficher", "Mostrar"),
+    "chk_fix": ("Beheben", "Fix", "Corriger", "Corregir"),
+    "undo_fix": ("Automatische Korrektur", "Automatic fix", "Correction automatique", "Corrección automática"),
+    "chk_sev_error": ("Problem", "Problem", "Problème", "Problema"),
+    "chk_sev_warning": ("Warnung", "Warning", "Avertissement", "Aviso"),
+    "chk_sev_info": ("Hinweis", "Note", "Remarque", "Nota"),
+    "chk_short_stitch_t": ("Sehr kurze Stiche", "Very short stitches", "Points très courts", "Puntadas muy cortas"),
+    "chk_short_stitch_d": ("Anzahl unter 0,3 mm: {count}. Die Nadel trifft fast dasselbe Loch, der Faden kann reissen.",
+                           "Stitches under 0.3 mm: {count}. The needle nearly hits the same hole and the thread can break.",
+                           "Points de moins de 0,3 mm : {count}. L'aiguille repique presque au même endroit et le fil peut casser.",
+                           "Puntadas de menos de 0,3 mm: {count}. La aguja casi repite el agujero y el hilo puede romperse."),
+    "chk_over_max_stitch_t": ("Stiche zu lang für die Maschine", "Stitches too long for the machine",
+                              "Points trop longs pour la machine", "Puntadas demasiado largas para la máquina"),
+    "chk_over_max_stitch_d": ("{count} Stiche überschreiten die Maschinengrenze (längster: {max_mm} mm).",
+                              "{count} stitches exceed the machine limit (longest: {max_mm} mm).",
+                              "{count} points dépassent la limite de la machine (le plus long : {max_mm} mm).",
+                              "{count} puntadas superan el límite de la máquina (la más larga: {max_mm} mm)."),
+    "chk_long_float_t": ("Lange lose Stiche", "Long loose stitches", "Longs points lâches", "Puntadas largas y sueltas"),
+    "chk_long_float_d": ("{count} Stiche sind länger als 7,5 mm (bis {max_mm} mm). Sie bleiben im Alltag leicht hängen.",
+                         "{count} stitches are longer than 7.5 mm (up to {max_mm} mm). They snag easily in daily use.",
+                         "{count} points dépassent 7,5 mm (jusqu'à {max_mm} mm). Ils s'accrochent facilement à l'usage.",
+                         "{count} puntadas superan 7,5 mm (hasta {max_mm} mm). Se enganchan fácilmente con el uso."),
+    "chk_no_lock_t": ("Fadenenden nicht vernäht", "Thread ends not locked", "Extrémités de fil non arrêtées",
+                      "Extremos de hilo sin rematar"),
+    "chk_no_lock_d": ("An {count} Stellen fehlen Vernähstiche. Dort kann sich die Stickerei beim Waschen lösen.",
+                      "{count} places have no lock stitches. The embroidery can come loose there when washed.",
+                      "{count} endroits sans points d'arrêt. La broderie peut s'y défaire au lavage.",
+                      "{count} lugares sin puntadas de remate. El bordado puede soltarse ahí al lavarlo."),
+    "chk_orphan_run_t": ("Zu kurze Abschnitte", "Sections too short", "Sections trop courtes", "Secciones demasiado cortas"),
+    "chk_orphan_run_d": ("{count} Abschnitte haben weniger als 3 Stiche und halten nach dem Fadenschnitt kaum.",
+                         "{count} sections have fewer than 3 stitches and barely hold after the thread is cut.",
+                         "{count} sections ont moins de 3 points et tiennent mal après la coupe du fil.",
+                         "{count} secciones tienen menos de 3 puntadas y apenas aguantan tras cortar el hilo."),
+    "chk_untrimmed_jump_t": ("Sprünge ohne Fadenschnitt", "Jumps without a trim", "Sauts sans coupe de fil",
+                             "Saltos sin corte de hilo"),
+    "chk_untrimmed_jump_d": ("{count} Sprünge lassen einen Faden quer über dem Motiv liegen.",
+                             "{count} jumps leave a thread lying across the design.",
+                             "{count} sauts laissent un fil en travers du motif.",
+                             "{count} saltos dejan un hilo cruzando el diseño."),
+    "chk_needle_pileup_t": ("Zu viele Einstiche an einem Punkt", "Too many needle hits in one spot",
+                            "Trop de piqûres au même endroit", "Demasiadas puntadas en un punto"),
+    "chk_needle_pileup_d": ("An {count} Stellen sticht die Nadel bis zu {max_hits}-mal ein. Das kann Stoff und Nadel beschädigen.",
+                            "In {count} places the needle hits up to {max_hits} times. This can damage fabric and needle.",
+                            "À {count} endroits l'aiguille pique jusqu'à {max_hits} fois. Cela peut abîmer le tissu et l'aiguille.",
+                            "En {count} lugares la aguja entra hasta {max_hits} veces. Puede dañar la tela y la aguja."),
+    "chk_too_dense_t": ("Zu dicht gestickt", "Stitched too densely", "Broderie trop dense", "Bordado demasiado denso"),
+    "chk_too_dense_d": ("An {count} mm² liegen bis zu {peak} Fadenlagen (Grenze für diesen Stoff: {limit}). Die Stelle wird brettartig.",
+                        "{count} mm² carry up to {peak} thread layers (limit for this fabric: {limit}). The area turns board-stiff.",
+                        "{count} mm² portent jusqu'à {peak} couches de fil (limite pour ce tissu : {limit}). La zone devient rigide.",
+                        "{count} mm² llevan hasta {peak} capas de hilo (límite de esta tela: {limit}). La zona queda rígida."),
+    "chk_outside_hoop_t": ("Motiv passt nicht in den Rahmen", "Design does not fit the hoop",
+                           "Le motif ne tient pas dans le cadre", "El diseño no cabe en el bastidor"),
+    "chk_outside_hoop_d": ("Stiche liegen im Randbereich des Rahmens. Die Nadel kann den Rahmen treffen.",
+                           "Stitches lie in the edge zone of the hoop. The needle could hit the hoop.",
+                           "Des points se trouvent en bordure du cadre. L'aiguille pourrait le toucher.",
+                           "Hay puntadas en el borde del bastidor. La aguja podría golpearlo."),
+    "chk_low_coverage_t": ("Stoff scheint durch", "Fabric shows through", "Le tissu transparaît", "Se ve la tela"),
+    "chk_low_coverage_d": ("„{object}“ ist nur zu {percent} % bedeckt.", "“{object}” is only {percent}% covered.",
+                           "« {object} » n'est couvert qu'à {percent} %.", "«{object}» solo está cubierto al {percent} %."),
+    "chk_too_many_colors_t": ("Mehr Farben als Nadeln", "More colors than needles", "Plus de couleurs que d'aiguilles",
+                              "Más colores que agujas"),
+    "chk_too_many_colors_d": ("{count} Farben bei {needles} Nadeln: Du musst unterwegs den Faden wechseln.",
+                              "{count} colors on {needles} needles: you will change thread along the way.",
+                              "{count} couleurs pour {needles} aiguilles : il faudra changer de fil en cours de route.",
+                              "{count} colores con {needles} agujas: tendrás que cambiar de hilo durante el bordado."),
+    "chk_registration_gap_t": ("Lücken zwischen Objekten möglich", "Gaps between objects are likely",
+                               "Risque d'espaces entre les objets", "Posibles huecos entre objetos"),
+    "chk_registration_gap_d": ("Der Stoffzug verschiebt Teile um bis zu {mm} mm gegeneinander. Mehr Zugausgleich hilft.",
+                               "Fabric pull shifts parts by up to {mm} mm against each other. More pull compensation helps.",
+                               "La traction du tissu décale des parties jusqu'à {mm} mm. Plus de compensation aide.",
+                               "El tiro de la tela desplaza partes hasta {mm} mm. Más compensación ayuda."),
+    "chk_puckering_t": ("Stoff kann Wellen werfen", "Fabric may pucker", "Le tissu peut godailler", "La tela puede fruncirse"),
+    "chk_puckering_d": ("Die Stickerei zieht den Stoff um rund {mm} mm zusammen. Verwende ein festeres Vlies.",
+                        "The embroidery pulls the fabric in by about {mm} mm. Use a firmer stabilizer.",
+                        "La broderie resserre le tissu d'environ {mm} mm. Utilisez un stabilisateur plus ferme.",
+                        "El bordado encoge la tela unos {mm} mm. Usa un estabilizador más firme."),
+    "chk_small_text_t": ("Schrift zu klein für diese Schriftart", "Lettering too small for this font",
+                         "Texte trop petit pour cette police", "Texto demasiado pequeño para esta fuente"),
+    "chk_small_text_d": ("„{object}“ ist {mm} mm hoch. Umriss-Schriften laufen so klein zu. Nimm „OpenStitch Micro“.",
+                         "“{object}” is {mm} mm tall. Outline fonts fill in at this size. Use “OpenStitch Micro”.",
+                         "« {object} » mesure {mm} mm. Les polices à contour se bouchent à cette taille. Utilisez « OpenStitch Micro ».",
+                         "«{object}» mide {mm} mm. Las fuentes de contorno se cierran a este tamaño. Usa «OpenStitch Micro»."),
+    "chk_export_ok_t": ("{ext}-Datei geprüft", "{ext} file verified", "Fichier {ext} vérifié", "Archivo {ext} verificado"),
+    "chk_export_ok_d": ("{st} Stiche neu eingelesen, grösste Abweichung {err} mm.",
+                        "{st} stitches read back, largest error {err} mm.",
+                        "{st} points relus, écart maximal {err} mm.",
+                        "{st} puntadas releídas, desviación máxima {err} mm."),
+    "chk_export_bad_t": ("Problem in der {ext}-Datei", "Problem in the {ext} file", "Problème dans le fichier {ext}",
+                         "Problema en el archivo {ext}"),
+})
+
+# Startseite, Stoffe, neue Oberfläche
+_TABLE.update({
+    "tb_open": ("Öffnen", "Open", "Ouvrir", "Abrir"),
+    "tb_save": ("Speichern", "Save", "Enregistrer", "Guardar"),
+    "tb_check": ("Prüfen", "Check", "Vérifier", "Revisar"),
+    "act_home": ("Startseite anzeigen", "Show start page", "Afficher la page d'accueil", "Mostrar página de inicio"),
+    "act_theme_dark": ("Dunkles Design", "Dark theme", "Thème sombre", "Tema oscuro"),
+    "act_theme_light": ("Helles Design", "Light theme", "Thème clair", "Tema claro"),
+    "menu_recent": ("Zuletzt geöffnet", "Open recent", "Fichiers récents", "Abrir reciente"),
+    "lbl_fabric": ("Stoff:", "Fabric:", "Tissu :", "Tela:"),
+    "fab_woven": ("Baumwolle / Hemd (gewebt)", "Cotton / shirt (woven)", "Coton / chemise (tissé)",
+                  "Algodón / camisa (tejido)"),
+    "fab_denim": ("Jeans / Canvas", "Denim / canvas", "Denim / toile", "Vaquero / lona"),
+    "fab_twill_cap": ("Kappe (Twill)", "Cap (twill)", "Casquette (sergé)", "Gorra (sarga)"),
+    "fab_pique": ("Polo-Piqué", "Polo piqué", "Piqué polo", "Piqué de polo"),
+    "fab_jersey": ("T-Shirt (Jersey)", "T-shirt (jersey)", "T-shirt (jersey)", "Camiseta (punto)"),
+    "fab_fleece": ("Fleece / Sweatshirt", "Fleece / sweatshirt", "Polaire / sweat", "Polar / sudadera"),
+    "fab_towel": ("Frottee / Handtuch", "Terry / towel", "Éponge / serviette", "Rizo / toalla"),
+    "fab_leather": ("Leder", "Leather", "Cuir", "Cuero"),
+    "fab_silk": ("Seide / feiner Stoff", "Silk / fine fabric", "Soie / tissu fin", "Seda / tela fina"),
+    "stab_cutaway": ("Schneidvlies", "cut-away stabilizer", "stabilisateur à découper", "estabilizador recortable"),
+    "stab_tearaway": ("Reissvlies", "tear-away stabilizer", "stabilisateur à déchirer", "estabilizador desprendible"),
+    "stab_none": ("kein Vlies", "no stabilizer", "pas de stabilisateur", "sin estabilizador"),
+    "fabric_advice": ("{fabric}: {stabilizer} verwenden, Nadel {needle}. Dichte und Zugausgleich sind angepasst.",
+                      "{fabric}: use {stabilizer}, needle {needle}. Density and pull compensation are adjusted.",
+                      "{fabric} : utilisez un {stabilizer}, aiguille {needle}. Densité et compensation ajustées.",
+                      "{fabric}: usa {stabilizer}, aguja {needle}. Densidad y compensación ajustadas."),
+    "fabric_topping": ("Obenauf wasserlösliche Folie legen, damit die Stiche nicht einsinken.",
+                       "Put water-soluble topping on top so stitches do not sink in.",
+                       "Posez un film soluble dessus pour que les points ne s'enfoncent pas.",
+                       "Coloca film soluble encima para que las puntadas no se hundan."),
+    "tip_obj_visible": ("Objekt ein- oder ausblenden", "Show or hide object", "Afficher ou masquer l'objet",
+                        "Mostrar u ocultar objeto"),
+    "tip_obj_copy": ("Objekt duplizieren", "Duplicate object", "Dupliquer l'objet", "Duplicar objeto"),
+    "param_knockout": ("Verdecktes nicht sticken", "Skip hidden parts", "Ignorer les parties cachées",
+                       "Omitir partes ocultas"),
+    "canvas_empty_hint": ("Bild hierher ziehen oder links ein Zeichenwerkzeug wählen",
+                          "Drop an image here or pick a drawing tool on the left",
+                          "Déposez une image ici ou choisissez un outil de dessin à gauche",
+                          "Suelta una imagen aquí o elige una herramienta de dibujo a la izquierda"),
+    "start_title": ("Was möchtest du sticken?", "What would you like to embroider?",
+                    "Que souhaitez-vous broder ?", "¿Qué te gustaría bordar?"),
+    "start_subtitle": ("Wähle einen Einstieg. Du brauchst keine Vorkenntnisse.",
+                       "Pick a starting point. No experience needed.",
+                       "Choisissez un point de départ. Aucune expérience requise.",
+                       "Elige un punto de partida. No necesitas experiencia."),
+    "start_image": ("Bild in Stickerei umwandeln", "Turn an image into embroidery", "Transformer une image en broderie",
+                    "Convertir una imagen en bordado"),
+    "start_image_d": ("Logo oder Zeichnung wählen, den Rest erledigt OpenStitch.",
+                      "Pick a logo or drawing and OpenStitch does the rest.",
+                      "Choisissez un logo ou un dessin, OpenStitch fait le reste.",
+                      "Elige un logotipo o dibujo y OpenStitch hará el resto."),
+    "start_text": ("Text sticken", "Embroider text", "Broder du texte", "Bordar texto"),
+    "start_text_d": ("Name oder Schriftzug, sauber lesbar ab 2,5 mm Höhe.",
+                     "A name or slogan, cleanly readable from 2.5 mm tall.",
+                     "Un nom ou un slogan, lisible dès 2,5 mm de haut.",
+                     "Un nombre o lema, legible desde 2,5 mm de alto."),
+    "start_draw": ("Selbst zeichnen", "Draw it yourself", "Dessiner vous-même", "Dibujar tú mismo"),
+    "start_draw_d": ("Flächen, Satinsäulen und Linien mit der Maus zeichnen.",
+                     "Draw fills, satin columns and lines with the mouse.",
+                     "Dessinez des remplissages, colonnes satin et lignes à la souris.",
+                     "Dibuja rellenos, columnas de satén y líneas con el ratón."),
+    "start_open": ("Datei öffnen", "Open a file", "Ouvrir un fichier", "Abrir un archivo"),
+    "start_open_d": ("Projekt, Stickdatei (DST, PES, JEF …), SVG oder Bild.",
+                     "Project, embroidery file (DST, PES, JEF …), SVG or image.",
+                     "Projet, fichier de broderie (DST, PES, JEF …), SVG ou image.",
+                     "Proyecto, archivo de bordado (DST, PES, JEF …), SVG o imagen."),
+    "start_samples": ("Oder mit einem Beispiel anfangen", "Or start from an example",
+                      "Ou commencez par un exemple", "O empieza con un ejemplo"),
+    "start_recent": ("Zuletzt geöffnet", "Recent files", "Fichiers récents", "Archivos recientes"),
+    "start_tour": ("Kurze Einführung ansehen", "Take a short tour", "Suivre une courte visite",
+                   "Ver una breve introducción"),
+    "sample_patch": ("Namensschild", "Name patch", "Écusson prénom", "Parche con nombre"),
+    "sample_heart": ("Herz", "Heart", "Cœur", "Corazón"),
+    "sample_flower": ("Blume", "Flower", "Fleur", "Flor"),
+    "sample_monogram": ("Monogramm", "Monogram", "Monogramme", "Monograma"),
+    "fd_open_any": ("Datei öffnen", "Open file", "Ouvrir un fichier", "Abrir archivo"),
+    "filter_supported": ("Alle unterstützten Dateien", "All supported files", "Tous les fichiers pris en charge",
+                         "Todos los archivos compatibles"),
+    "err_file_gone": ("Die Datei wurde nicht gefunden:\n{}", "The file was not found:\n{}",
+                      "Fichier introuvable :\n{}", "No se encontró el archivo:\n{}"),
+    "err_unknown_type": ("„{}“ hat einen Dateityp, den OpenStitch nicht kennt.",
+                         "“{}” has a file type OpenStitch does not know.",
+                         "« {} » a un type de fichier inconnu d'OpenStitch.",
+                         "«{}» tiene un tipo de archivo que OpenStitch no conoce."),
+    "dlg_recover_title": ("Arbeit wiederherstellen?", "Restore your work?", "Restaurer votre travail ?",
+                          "¿Restaurar tu trabajo?"),
+    "dlg_recover_text": ("OpenStitch wurde nicht sauber beendet. Möchtest du die letzte automatische Sicherung öffnen?",
+                         "OpenStitch did not close properly. Open the last automatic backup?",
+                         "OpenStitch ne s'est pas fermé correctement. Ouvrir la dernière sauvegarde automatique ?",
+                         "OpenStitch no se cerró correctamente. ¿Abrir la última copia automática?"),
+    "status_autosave_failed": ("Automatisches Speichern fehlgeschlagen: {}", "Autosave failed: {}",
+                               "Échec de l'enregistrement automatique : {}", "Falló el guardado automático: {}"),
+})
+
+# Fehlermeldungen beim Laden
+_TABLE.update({
+    "err_project_damaged": (
+        "„{name}“ ist beschädigt oder keine OpenStitch-Projektdatei.",
+        "“{name}” is damaged or not an OpenStitch project file.",
+        "« {name} » est endommagé ou n'est pas un fichier de projet OpenStitch.",
+        "«{name}» está dañado o no es un archivo de proyecto de OpenStitch."),
+})
 
 def tr_all(key: str) -> list[str]:
     return list(_TABLE.get(key, (key,) * 4))
@@ -296,8 +600,8 @@ def tr_opt(key: str, fallback: str) -> str:
 
 # Zahlenformat je Sprache: Tausendertrennzeichen und Dezimalzeichen
 # (de: Schweizer Apostroph, fr: schmales geschütztes Leerzeichen)
-_GROUP_SEP = {"de": "’", "en": ",", "fr": " ", "es": "."}
-_DEC_SEP = {"de": ".", "en": ".", "fr": ",", "es": ","}
+_GROUP_SEP = {"de": "’", "en": ",", "fr": " ", "es": ".", "it": ".", "pt": "\u00a0", "nl": ".", "pl": "\u00a0", "tr": "."}
+_DEC_SEP = {"de": ".", "en": ".", "fr": ",", "es": ",", "it": ",", "pt": ",", "nl": ",", "pl": ",", "tr": ","}
 
 
 def fmt_int(n) -> str:
@@ -445,8 +749,6 @@ _TABLE.update({
                           "Please select a fill or satin shape on the canvas first.",
                           "Veuillez d'abord sélectionner une forme sur le canevas.",
                           "Primero selecciona una forma en el lienzo."),
-    "msg_doctor_title": ("Qualitäts- & Maschinen-Doktor", "Quality & Machine Doctor",
-                         "Docteur qualité & machine", "Doctor de calidad y máquina"),
     "msg_export_verified_title": ("Export & Binär-Verifikation erfolgreich", "Export & binary verification successful",
                                   "Export et vérification binaire réussis",
                                   "Exportación y verificación binaria correctas"),
@@ -870,3 +1172,6 @@ _TABLE.update({
                      "Séquence de couleurs et attribution des aiguilles ({} aiguilles)",
                      "Secuencia de colores y asignación de agujas ({} agujas)"),
 })
+
+from .i18n_tour import TOUR_TABLE  # noqa: E402
+_TABLE.update(TOUR_TABLE)

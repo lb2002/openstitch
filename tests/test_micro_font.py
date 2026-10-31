@@ -145,3 +145,12 @@ def test_micro_text_save_load_roundtrip():
     assert (t2.text, t2.font, t2.height, t2.letter_spacing, t2.arc_radius, t2.density) == \
         ("Grüße", MICRO_SPEC, 4.0, 0.2, -40.0, 0.38)
     assert t2.runs() == t.runs()
+
+
+def test_small_letters_stay_distinguishable():
+    from openstitch.analysis.legibility import measure
+    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    m = measure(chars, 3.0, "builtin:micro")
+    assert m.blocked_counters == []                 # ab 3 mm bleibt jeder Innenraum offen
+    pairs = {frozenset(p[:2]): p[2] for p in m.worst_pairs}
+    assert pairs.get(frozenset("lI"), 0.0) < 0.97    # l und I dürfen nicht identisch sein

@@ -7,9 +7,11 @@ import os
 
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QImage, QPageLayout, QPageSize, QPainter, QPdfWriter, QPen
+from shapely.errors import GEOSException
 
 from .. import APP_NAME, __version__
 from ..core.design import HOOPS, Design, Hoop, Settings, object_from_dict
+from ..core.fabric import fabric_by_id
 from ..core.stitchplan import StitchPlan
 from ..i18n import fmt_int, machine_display_name, tr
 from ..render import render_image
@@ -20,6 +22,7 @@ def save_project(design: Design, path: str) -> None:
         "app": APP_NAME,
         "version": __version__,
         "name": design.name,
+        "fabric": design.fabric,
         "hoop": {
             "name": design.hoop.name,
             "width": design.hoop.width,
@@ -38,21 +41,35 @@ def save_project(design: Design, path: str) -> None:
     os.replace(tmp, path)
 
 
+def _load_hoop(h: dict) -> Hoop:
+    hoop = Hoop(str(h.get("name", "Rahmen")), float(h.get("width", 150)), float(h.get("height", 150)),
+                bool(h.get("round", True)), str(h.get("mode", "medium")), float(h.get("margin_mm", 4.5)))
+    if not (10 <= hoop.width <= 2000 and 10 <= hoop.height <= 2000):
+        raise ValueError("invalid hoop size")
+    return hoop
+
+
+def _load_settings(values: dict) -> Settings:
+    st = Settings(**{k: v for k, v in values.items() if k in Settings.__annotations__})
+    st.max_stitch = min(max(float(st.max_stitch), 1.0), 12.7)
+    st.min_trim = min(max(float(st.min_trim), 0.0), 50.0)
+    st.needles = max(1, int(st.needles))
+    return st
+
+
 def load_project(path: str) -> Design:
-    with open(path, "r", encoding="utf-8-sig") as f:
-        data = json.load(f)
-    h = data.get("hoop", {})
-    hoop = Hoop(
-        h.get("name", "Rahmen"),
-        h.get("width", 150),
-        h.get("height", 150),
-        h.get("round", True),
-        h.get("mode", "medium"),
-        h.get("margin_mm", 4.5),
-    )
-    st = Settings(**{k: v for k, v in data.get("settings", {}).items() if k in Settings.__annotations__})
-    objs = [object_from_dict(od) for od in data.get("objects", [])]
-    return Design(objects=objs, hoop=hoop, settings=st, name=data.get("name", "Projekt"))
+    """Lädt ein Projekt. Beschädigte Dateien ergeben einen ValueError mit lesbarem Text."""
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+        objs = [object_from_dict(od) for od in data.get("objects", [])]
+        return Design(objects=objs, hoop=_load_hoop(data.get("hoop", {})),
+                      settings=_load_settings(data.get("settings", {})), name=str(data.get("name", "Projekt")),
+                      fabric=fabric_by_id(data.get("fabric")).id)
+    except OSError:
+        raise
+    except (ValueError, KeyError, TypeError, AttributeError, IndexError, GEOSException) as exc:
+        raise ValueError(tr("err_project_damaged").format(name=os.path.basename(path))) from exc
 
 
 def export_worksheet_pdf(design: Design, plan: StitchPlan, path: str, machine_name: str | None = None) -> None:

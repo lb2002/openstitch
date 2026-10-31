@@ -34,11 +34,16 @@ jobs:
       - name: Install OpenStitch Studio & test dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
-          pip install pytest
+          pip install -e ".[dev]"
 
       - name: Run full test & binary embroidery verification suite
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          pytest tests -v
+          pytest tests -v --durations=10
+
+      - name: Check the built-in test designs with the virtual stitch-out
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m openstitch.analysis --corpus --formats

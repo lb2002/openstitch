@@ -6,7 +6,7 @@ import re
 
 import numpy as np
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtGui import QColor, QImage, QPixmap
+from PySide6.QtGui import QColor, QImage, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -25,16 +25,22 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QVBoxLayout,
+    QWidget,
 )
 
 from ..auto.digitize import AutoParams, AutoResult, auto_digitize, load_image
 from ..auto.photostitch import PhotoStitchParams, generate_photostitch
 from ..core.design import Design
 from ..core.stitchplan import StitchPlan, Thread
+from ..engine.geom import polygons_of
+from ..fonts_micro import MICRO_SPEC
 from ..io.exp import exp_bytes
 from ..io.fat12 import Fat12Image, dos_name
 from ..i18n import fmt_float, fmt_int, key_for, tr
 from ..text import TextObject, default_font, list_fonts
+from . import theme
+
+MICRO_ADVICE_MM = 5.5     # darunter laufen Umriss-Schriften zu
 
 
 def _np_to_pixmap(rgb: np.ndarray, max_side: int = 360) -> QPixmap:
@@ -144,7 +150,7 @@ class AutoDigitizeDialog(QDialog):
         top.addLayout(v1, 1)
 
         # Einstellungen rechts
-        grp = QGroupBox(tr("grp_auto_settings"))
+        grp = QGroupBox(tr("grp_auto_settings").replace("&", "&&"))
         form = QFormLayout(grp)
 
         self.sp_width = QDoubleSpinBox()
@@ -161,11 +167,6 @@ class AutoDigitizeDialog(QDialog):
         self.cb_bg = QCheckBox(tr("cb_remove_bg"))
         self.cb_bg.setChecked(True)
         form.addRow("", self.cb_bg)
-
-        self.cmb_fabric = QComboBox()
-        for fab in ("normal", "strick", "frottee", "cap", "leicht"):
-            self.cmb_fabric.addItem(tr(f"fabric_opt_{fab}"), fab)
-        form.addRow(tr("lbl_fabric_type"), self.cmb_fabric)
 
         self.sp_density = QDoubleSpinBox()
         self.sp_density.setRange(0.28, 1.0)
@@ -238,7 +239,6 @@ class AutoDigitizeDialog(QDialog):
             width_mm=self.sp_width.value(),
             colors=self.sp_colors.value(),
             remove_background=self.cb_bg.isChecked(),
-            fabric=self.cmb_fabric.currentData(),
             density=self.sp_density.value(),
             satin_max_mm=self.sp_satin.value(),
             min_area_mm2=self.sp_min_area.value(),
@@ -286,6 +286,44 @@ class AutoDigitizeDialog(QDialog):
 # ===========================================================================
 # 2. Schrift & Monogramme
 # ===========================================================================
+class _TextPreview(QWidget):
+    """Sofort-Vorschau der Schrift (Umrisse statt Stiche: reagiert beim Tippen ohne Verzögerung)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMinimumHeight(92)
+        self.obj: TextObject | None = None
+
+    def set_object(self, obj: TextObject | None):
+        self.obj = obj
+        self.update()
+
+    def paintEvent(self, _ev):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing, True)
+        p.fillRect(self.rect(), theme.color("surface"))
+        geom = self.obj.world_geom() if self.obj is not None else None
+        if geom is None or geom.is_empty:
+            return
+        x0, y0, x1, y1 = geom.bounds
+        w, h = max(x1 - x0, 0.1), max(y1 - y0, 0.1)
+        k = min((self.width() - 24) / w, (self.height() - 18) / h)
+        p.translate(self.width() / 2 - (x0 + w / 2) * k, self.height() / 2 - (y0 + h / 2) * k)
+        p.scale(k, k)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(*self.obj.thread.color) if sum(self.obj.thread.color) > 150 else theme.color("text"))
+        path = QPainterPath()
+        path.setFillRule(Qt.OddEvenFill)
+        for poly in polygons_of(geom):
+            for ring in [poly.exterior, *poly.interiors]:
+                pts = list(ring.coords)
+                path.moveTo(*pts[0][:2])
+                for q in pts[1:]:
+                    path.lineTo(*q[:2])
+                path.closeSubpath()
+        p.drawPath(path)
+
+
 class TextDialog(QDialog):
     def __init__(self, thread: Thread, existing: TextObject | None = None, parent=None):
         super().__init__(parent)
@@ -297,8 +335,20 @@ class TextDialog(QDialog):
 
         root = QVBoxLayout(self)
         form = QFormLayout()
+        self._existing = existing
+
+        self.preview = _TextPreview()
+        root.addWidget(self.preview)
+        self.lbl_font_tip = QPushButton()
+        self.lbl_font_tip.setObjectName("linkBtn")
+        self.lbl_font_tip.setCursor(Qt.PointingHandCursor)
+        self.lbl_font_tip.clicked.connect(self._use_micro)
+        root.addWidget(self.lbl_font_tip)
 
         self.ed_text = QLineEdit(existing.text if existing else "OPENSTITCH")
+        self.ed_text.setPlaceholderText(tr("ph_text"))
+        self.ed_text.selectAll()
+        self.ed_text.textChanged.connect(self._update_preview)
         form.addRow(tr("lbl_text"), self.ed_text)
 
         self.cmb_font = QComboBox()
@@ -310,12 +360,14 @@ class TextDialog(QDialog):
             if spec == cur_font:
                 cur_idx = idx
         self.cmb_font.setCurrentIndex(cur_idx)
+        self.cmb_font.currentIndexChanged.connect(self._update_preview)
         form.addRow(tr("lbl_font_file"), self.cmb_font)
 
         self.sp_height = QDoubleSpinBox()
-        self.sp_height.setRange(4.0, 150.0)
+        self.sp_height.setRange(2.0, 150.0)
         self.sp_height.setValue(existing.height if existing else 16.0)
         self.sp_height.setSuffix(" mm")
+        self.sp_height.valueChanged.connect(self._update_preview)
         form.addRow(tr("lbl_letter_height"), self.sp_height)
 
         self.sp_spacing = QDoubleSpinBox()
@@ -323,6 +375,7 @@ class TextDialog(QDialog):
         self.sp_spacing.setSingleStep(0.2)
         self.sp_spacing.setValue(existing.letter_spacing if existing else 0.6)
         self.sp_spacing.setSuffix(" mm")
+        self.sp_spacing.valueChanged.connect(self._update_preview)
         form.addRow(tr("lbl_letter_spacing"), self.sp_spacing)
 
         self.sp_arc = QDoubleSpinBox()
@@ -330,6 +383,7 @@ class TextDialog(QDialog):
         self.sp_arc.setSingleStep(5.0)
         self.sp_arc.setValue(existing.arc_radius if existing else 0.0)
         self.sp_arc.setSuffix(tr("sfx_arc"))
+        self.sp_arc.valueChanged.connect(self._update_preview)
         form.addRow(tr("lbl_arc_radius"), self.sp_arc)
 
         self.cmb_mode = QComboBox()
@@ -356,6 +410,26 @@ class TextDialog(QDialog):
         btns.accepted.connect(self._apply)
         btns.rejected.connect(self.reject)
         root.addWidget(btns)
+        self._update_preview()
+
+    def _update_preview(self):
+        txt = self.ed_text.text().strip()
+        font = self.cmb_font.currentData()
+        micro = font == MICRO_SPEC
+        small = self.sp_height.value() < MICRO_ADVICE_MM
+        self.lbl_font_tip.setVisible(small and not micro)
+        self.lbl_font_tip.setText(tr("tip_use_micro"))
+        try:
+            obj = TextObject(self.thread, text=txt, font=font, height=self.sp_height.value(),
+                             letter_spacing=self.sp_spacing.value(), arc_radius=self.sp_arc.value()) if txt else None
+        except Exception:  # noqa: BLE001 - defekte Schriftdatei: Vorschau bleibt leer, Dialog nutzbar
+            obj = None
+        self.preview.set_object(obj)
+
+    def _use_micro(self):
+        idx = self.cmb_font.findData(MICRO_SPEC)
+        if idx >= 0:
+            self.cmb_font.setCurrentIndex(idx)
 
     def _apply(self):
         txt = self.ed_text.text().strip()
@@ -391,7 +465,7 @@ class MelcoDiskDialog(QDialog):
         root = QVBoxLayout(self)
 
         # Abschnitt 1: Dateiname & Trim-Modus
-        g1 = QGroupBox(tr("grp_transfer_1"))
+        g1 = QGroupBox(tr("grp_transfer_1").replace("&", "&&"))
         f1 = QFormLayout(g1)
         self.ed_name = QLineEdit(dos_name(design_name, "EXP"))
         f1.addRow(tr("lbl_dos_name"), self.ed_name)
@@ -403,7 +477,7 @@ class MelcoDiskDialog(QDialog):
         root.addWidget(g1)
 
         # Abschnitt 2: Direkt auf USB-Stick / Diskettenlaufwerk oder per WLAN-NetBridge senden
-        g2 = QGroupBox(tr("grp_transfer_2"))
+        g2 = QGroupBox(tr("grp_transfer_2").replace("&", "&&"))
         v2 = QVBoxLayout(g2)
         btn_folder = QPushButton(tr("btn_save_exp_usb"))
         btn_folder.clicked.connect(self._save_direct_exp)
@@ -420,7 +494,7 @@ class MelcoDiskDialog(QDialog):
         root.addWidget(g2)
 
         # Abschnitt 3: 1.44 MB FAT12 Diskettenabbild (.IMG) für GoTek / FlashFloppy / HxC
-        g3 = QGroupBox(tr("grp_transfer_3"))
+        g3 = QGroupBox(tr("grp_transfer_3").replace("&", "&&"))
         v3 = QVBoxLayout(g3)
         self.lbl_img = QLabel(tr("lbl_img_initial"))
         v3.addWidget(self.lbl_img)
@@ -569,7 +643,7 @@ class PhotoStitchDialog(QDialog):
         v1.addWidget(btn_change_img)
         top.addLayout(v1, 1)
 
-        grp = QGroupBox(tr("grp_photo_settings"))
+        grp = QGroupBox(tr("grp_photo_settings").replace("&", "&&"))
         form = QFormLayout(grp)
 
         self.sp_width = QDoubleSpinBox()

@@ -1,6 +1,7 @@
 """Sofortiger Splash-Screen & schneller Startpunkt für OpenStitch."""
 from __future__ import annotations
 
+import os
 import sys
 
 from PySide6.QtCore import QRectF, Qt, QTimer
@@ -59,6 +60,11 @@ def _create_splash_pixmap() -> QPixmap:
 
 
 def main():
+    if "--selftest" in sys.argv:
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        app = QApplication(sys.argv)  # noqa: F841 - Bild- und Schriftfunktionen brauchen die Instanz
+        from .selftest import run
+        sys.exit(run())
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
 
@@ -74,6 +80,7 @@ def main():
     app.processEvents()
 
     # 2. Erst jetzt die Hauptmodule importieren
+    from .ui.crash import install as install_crash_handler
     from .ui.main_window import MainWindow
 
     splash.showMessage(
@@ -84,11 +91,12 @@ def main():
     app.processEvents()
 
     win = MainWindow(defer_starter=True)
+    install_crash_handler(win)
     win.show()
     app.processEvents()
 
     def _finish_startup():
-        win._load_starter_design()
+        win.startup()
         splash.finish(win)
         win.setWindowState((win.windowState() & ~Qt.WindowMinimized) | Qt.WindowActive)
         win.raise_()

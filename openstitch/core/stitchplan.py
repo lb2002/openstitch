@@ -41,6 +41,8 @@ class Thread:
     @staticmethod
     def from_hex(h: str, name: str = "", code: str = "", brand: str = "") -> "Thread":
         h = h.lstrip("#")
+        if len(h) != 6:
+            raise ValueError(f"invalid colour: {h!r}")
         return Thread((int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)), name, code, brand)
 
     def to_dict(self) -> dict:

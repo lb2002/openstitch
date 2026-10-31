@@ -15,6 +15,7 @@ from shapely.geometry import LineString, Point, box
 from openstitch.auto.digitize import AutoParams, auto_digitize
 from openstitch.core.design import Design, FillObject, RunObject, SatinObject
 from openstitch.core.stitchplan import Thread
+from openstitch.analysis import simulate_stitchout
 from openstitch.io.exp import exp_bytes
 from openstitch.io.fat12 import IMAGE_SIZE, Fat12Image
 from openstitch.io.formats import export_plan, import_file, verify_exported_file
@@ -22,7 +23,7 @@ from openstitch.io.project import export_worksheet_pdf, load_project, save_proje
 from openstitch.text import TextObject
 from openstitch.ui.main_window import MainWindow
 from openstitch.core.machines import MACHINE_PROFILES
-from openstitch.engine.pro_tools import create_applique_objects, import_svg, run_quality_doctor
+from openstitch.engine.pro_tools import create_applique_objects, import_svg
 from openstitch.auto.photostitch import PhotoStitchParams, generate_photostitch
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -83,8 +84,7 @@ def test_auto_digitizer_and_gui():
     win = MainWindow()
     win.wait_for_plan()
     assert win.canvas.plan.stitch_count > 500
-    issues = run_quality_doctor(win.canvas.design, win.canvas.plan, max_needles=10)
-    assert len(issues) >= 1
+    assert simulate_stitchout(win.canvas.design, win.canvas.plan, needles=10).score > 0
     app_objs = create_applique_objects(win.canvas.design.objects[0])
     assert len(app_objs) == 3
     assert len(MACHINE_PROFILES) >= 8
@@ -364,8 +364,7 @@ def test_quality_doctor_round_hoop_uses_real_radius():
     from openstitch.core.design import HOOPS
     d = Design(objects=[FillObject(Thread((1, 1, 1)), geom=Point(0, 0).buffer(64))])
     d.hoop = HOOPS[2]  # rund 15 cm → Radius 75 mm; Kreis r=64 passt (Bounding-Box-Ecke wäre 90 mm)
-    issues = run_quality_doctor(d, d.build_plan(), max_needles=10)
-    assert len(issues) == 1 and issues[0].startswith("✅")
+    assert "outside_hoop" not in {f.code for f in simulate_stitchout(d, d.build_plan(), physics=False).findings}
 
 
 def test_column_object_stitches_perpendicular_and_round_trips(tmp_path):

@@ -301,13 +301,15 @@ class TextObject(EmbObject):
         """Micro-Schrift: Mittellinien je Zeichen als schmale Satinsäulen / Dreifachstich."""
         cap = self.height * m_scale(self.transform)        # wirksame Versalhöhe in mm
         w = micro_stroke_width(cap)
-        pc = micro_pull_comp(w, self.pull_comp)   # schmale Säulen: wenig Zugkompensation
+        # Schmale Säulen brauchen wenig Zugkompensation
+        pc = micro_pull_comp(w, self.pull_comp * getattr(self, "_hoop_pc_boost", 1.0))
         glyph_strokes, thin = [], []
         for ch, g, _ in self._glyphs():
             wg = affinity.affine_transform(g, self.transform)
             glyph_strokes.append([[tuple(c) for c in p.coords] for p in wg.geoms])
             thin.append(micro_mark_strokes(ch))
-        return micro_text_runs(glyph_strokes, w, spacing=self.density, pull_comp=pc,
+        return micro_text_runs(glyph_strokes, w, spacing=self.density * getattr(self, "_density_factor", 1.0),
+                               pull_comp=pc,
                                run_len=micro_run_length(cap), glyph_thin=thin)
 
     def runs(self, start=None):
@@ -326,6 +328,8 @@ class TextObject(EmbObject):
                     ang = 45.0
                     o = FillObject(self.thread, geom=part, angle=ang, spacing=self.density,
                                    pull_comp=self.pull_comp)
+                o._hoop_pc_boost = getattr(self, "_hoop_pc_boost", 1.0)
+                o._density_factor = getattr(self, "_density_factor", 1.0)
                 rs = o.runs(cur)
                 if rs:
                     out.extend(rs)

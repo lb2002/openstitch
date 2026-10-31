@@ -82,6 +82,28 @@ def resample_path(coords: Iterable[Pt], step: float, closed: bool = False) -> li
     return merge_short(out, step * 0.35)
 
 
+def resample_uniform(coords: Iterable[Pt], step: float, closed: bool = False) -> list[Pt]:
+    """Exakt gleiche Abstände entlang des Pfades, unabhängig von der Dichte der Stützpunkte.
+
+    Für Satin-Querschnitte: `resample_path` unterteilt jedes Segment für sich und kann dadurch den
+    Abstand nie über den der Stützpunkte hinaus vergrössern (Skelette liegen dicht)."""
+    arr = np.array([tuple(c) for c in coords], float)
+    if closed and len(arr) and tuple(arr[0]) != tuple(arr[-1]):
+        arr = np.vstack((arr, arr[0]))
+    if len(arr) < 2:
+        return [tuple(p) for p in arr]
+    seg = np.hypot(*np.diff(arr, axis=0).T)
+    keep = np.concatenate(([True], seg > 1e-9))
+    arr = arr[keep]
+    cum = np.concatenate(([0.0], np.cumsum(np.hypot(*np.diff(arr, axis=0).T))))
+    total = float(cum[-1])
+    if total < 1e-9:
+        return [tuple(arr[0])]
+    n = max(1, int(round(total / step)))
+    s = np.linspace(0.0, total, n + 1)
+    return list(zip(np.interp(s, cum, arr[:, 0]).tolist(), np.interp(s, cum, arr[:, 1]).tolist()))
+
+
 def merge_short(pts: list[Pt], min_len: float) -> list[Pt]:
     """Entfernt sehr kurze Stiche (Fadenbruch-Gefahr) ohne Endpunkt zu verlieren."""
     if len(pts) < 3:
@@ -144,14 +166,15 @@ def path_along_ring(ring, p: Pt, q: Pt) -> list[Pt]:
         if forward:
             if s1 < s0:
                 s1 += L
-            idx = [c for c in cum[1:-1]] + [c + L for c in cum[1:-1]]
+            # Auch der Startpunkt des Rings ist eine Ecke: Ohne ihn schneidet der Weg dort ab
+            idx = [c for c in cum[:-1]] + [c + L for c in cum[:-1]]
             for c in idx:
                 if s0 < c < s1:
                     pts.append(tuple(line.interpolate(c % L).coords[0]))
         else:
             if s1 > s0:
                 s1 -= L
-            idx = sorted([c for c in cum[1:-1]] + [c - L for c in cum[1:-1]], reverse=True)
+            idx = sorted([c for c in cum[:-1]] + [c - L for c in cum[:-1]], reverse=True)
             for c in idx:
                 if s1 < c < s0:
                     pts.append(tuple(line.interpolate(c % L).coords[0]))
