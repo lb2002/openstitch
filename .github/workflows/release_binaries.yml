@@ -10,6 +10,8 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
+    branches: [ main ]
 
 permissions:
   contents: write
@@ -70,6 +72,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           pyinstaller --noconfirm --windowed --name "OpenStitch Studio" \
+            --osx-bundle-identifier org.openstitch.studio \
             --exclude-module pytest --exclude-module tkinter --exclude-module matplotlib \
             main.py
           cd dist
@@ -89,7 +92,31 @@ jobs:
             main.py
           tar -C dist -czf "dist/${{ matrix.asset_name }}" OpenStitch-Studio
 
+      - name: Self-test the packaged app
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          case "$RUNNER_OS" in
+            macOS) app="dist/OpenStitch Studio.app/Contents/MacOS/OpenStitch Studio" ;;
+            Linux) app="dist/OpenStitch-Studio" ;;
+            *) app="dist/OpenStitch-Studio-Windows-x64.exe" ;;
+          esac
+          rc=0
+          "$app" --selftest || rc=$?
+          cat openstitch-selftest.txt || echo "no report written"
+          exit $rc
+
+      - name: Keep the build for testing (pull requests)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.asset_name }}
+          retention-days: 7
+
       - name: Upload to GitHub Release
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}

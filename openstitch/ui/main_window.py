@@ -47,7 +47,7 @@ from ..i18n import (
     LANGUAGES, current_lang, fmt_int, init_lang, key_for, machine_display_name, set_lang, tr, tr_opt,
 )
 from ..core.design import HOOPS, Design, EmbObject, Hoop, SatinObject, color_sorted
-from ..core.fabric import FABRICS, fabric_by_id
+from ..core.fabric import FABRICS, fabric_by_id, set_pull_scale
 from ..core.machines import MACHINE_PROFILES, MachineProfile
 from ..core.stitchplan import Thread
 from ..engine.pro_tools import create_applique_objects, import_svg
@@ -91,6 +91,10 @@ class MainWindow(QMainWindow):
         self._bind(self.setWindowTitle, "app_tagline", fmt=lambda s: f"{APP_NAME} Studio {__version__}  —  {s}")
         theme.init_theme()
         theme.apply_to_app()
+        settings = QSettings("OpenStitch", "OpenStitchStudio")
+        for fab in FABRICS:     # gemessene Stoffwerte aus früheren Sitzungen
+            measured = settings.value(f"calibration/{fab.id}", None)
+            set_pull_scale(fab.id, None if measured is None else float(measured))
         self._icon_refs: list[tuple] = []
         self.resize(1440, 900)
         self.setAcceptDrops(True)

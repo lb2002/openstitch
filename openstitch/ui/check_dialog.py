@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import copy
 
-from PySide6.QtCore import QRectF, Qt, QThread, Signal
+from PySide6.QtCore import QRectF, QSettings, Qt, QThread, Signal
 from PySide6.QtGui import QFont, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QDialog,
+    QDoubleSpinBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -19,8 +20,10 @@ from PySide6.QtWidgets import (
 )
 
 from ..analysis import Report, simulate_stitchout
+from ..analysis.calibrate import BAR_WIDTH, calibration_design, fit_scale, is_measured
 from ..analysis.roundtrip import RoundTrip, check_format
 from ..core.design import Design
+from ..core.fabric import pull_scale, set_pull_scale
 from ..core.stitchplan import Cmd, ColorBlock, Stitch, StitchPlan
 from ..i18n import fmt_float, fmt_int, tr
 from ..render import render_image
@@ -97,6 +100,84 @@ def distorted_plan(plan: StitchPlan, report: Report, factor: float) -> StitchPla
             n += 1
         out.blocks.append(nb)
     return out
+
+
+class CalibrationDialog(QDialog):
+    """Testbalken sticken, messen, eintragen: Danach rechnet die Simulation mit dem echten Stoffzug."""
+
+    def __init__(self, win, parent=None):
+        super().__init__(parent or win)
+        self.win = win
+        self.fabric_id = win.canvas.design.fabric
+        self.setWindowTitle(tr("cal_title"))
+        self.resize(520, 300)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(18, 16, 18, 14)
+        root.setSpacing(10)
+        head = QLabel(tr(f"fab_{self.fabric_id}"))
+        head.setProperty("role", "section")
+        root.addWidget(head)
+        intro = QLabel(tr("cal_intro").format(width=fmt_float(BAR_WIDTH, 1)))
+        intro.setWordWrap(True)
+        root.addWidget(intro)
+        btn_load = QPushButton(tr("cal_load"))
+        btn_load.clicked.connect(self.load_patch)
+        root.addWidget(btn_load, 0, Qt.AlignLeft)
+        row = QHBoxLayout()
+        row.addWidget(QLabel(tr("cal_measured")))
+        self.sp_width = QDoubleSpinBox()
+        self.sp_width.setRange(2.5, 6.0)
+        self.sp_width.setSingleStep(0.05)
+        self.sp_width.setDecimals(2)
+        self.sp_width.setValue(BAR_WIDTH - 0.3)
+        self.sp_width.setSuffix(" mm")
+        row.addWidget(self.sp_width)
+        row.addStretch(1)
+        root.addLayout(row)
+        self.lbl_state = QLabel()
+        self.lbl_state.setWordWrap(True)
+        self.lbl_state.setProperty("role", "cardText")
+        root.addWidget(self.lbl_state)
+        root.addStretch(1)
+        btns = QHBoxLayout()
+        btns.addStretch(1)
+        btn_reset = QPushButton(tr("cal_reset"))
+        btn_reset.clicked.connect(self.reset)
+        btn_apply = QPushButton(tr("cal_apply"))
+        btn_apply.setObjectName("primaryBtn")
+        btn_apply.clicked.connect(self.apply)
+        btn_close = QPushButton(tr("btn_close"))
+        btn_close.clicked.connect(self.accept)
+        btns.addWidget(btn_reset)
+        btns.addWidget(btn_close)
+        btns.addWidget(btn_apply)
+        root.addLayout(btns)
+        self._show_state()
+
+    def _show_state(self):
+        scale = pull_scale(self.fabric_id)
+        self.lbl_state.setText(tr("cal_state_measured").format(factor=fmt_float(scale, 2)) if is_measured(self.fabric_id)
+                               else tr("cal_state_estimate"))
+
+    def load_patch(self):
+        if self.win._confirm_discard():
+            self.win.set_design(calibration_design(self.fabric_id), reset_undo=True)
+
+    def apply(self):
+        self._store(fit_scale(self.fabric_id, self.sp_width.value()))
+
+    def reset(self):
+        self._store(None)
+
+    def _store(self, value: float | None):
+        set_pull_scale(self.fabric_id, value)
+        s = QSettings("OpenStitch", "OpenStitchStudio")
+        if value is None:
+            s.remove(f"calibration/{self.fabric_id}")
+        else:
+            s.setValue(f"calibration/{self.fabric_id}", value)
+        self.win.rebuild_plan()
+        self._show_state()
 
 
 class DesignCheckDialog(QDialog):
@@ -176,10 +257,17 @@ class DesignCheckDialog(QDialog):
         body.addLayout(right, 4)
         root.addLayout(body, 1)
 
+        foot = QHBoxLayout()
         self.lbl_foot = QLabel(tr("chk_disclaimer"))
         self.lbl_foot.setProperty("role", "caption")
         self.lbl_foot.setWordWrap(True)
-        root.addWidget(self.lbl_foot)
+        foot.addWidget(self.lbl_foot, 1)
+        btn_cal = QPushButton(tr("cal_open"))
+        btn_cal.setObjectName("linkBtn")
+        btn_cal.setCursor(Qt.PointingHandCursor)
+        btn_cal.clicked.connect(self._calibrate)
+        foot.addWidget(btn_cal, 0, Qt.AlignRight)
+        root.addLayout(foot)
 
     # ---------------------------------------------------------------- Ablauf
     def showEvent(self, ev):
@@ -275,7 +363,9 @@ class DesignCheckDialog(QDialog):
         data.setdefault("count", f.count)
         fmt = {k: (fmt_float(v, 1) if isinstance(v, float) else v) for k, v in data.items()}
         fmt["count"] = fmt_int(f.count)
-        _card, row = self._card(f.severity, tr(f"chk_{f.code}_t"), tr(f"chk_{f.code}_d").format(**fmt))
+        tag = "chk_tag_model" if f.is_estimate else "chk_tag_rule"
+        title = f"{tr(f'chk_{f.code}_t')}  ·  {tr(tag)}"
+        _card, row = self._card(f.severity, title, tr(f"chk_{f.code}_d").format(**fmt))
         if f.where:
             b = QPushButton(tr("chk_show"))
             b.clicked.connect(lambda _=False, pts=f.where: self.win.canvas.show_spots(pts))
@@ -297,6 +387,10 @@ class DesignCheckDialog(QDialog):
 
     def _apply_fix(self, fn):
         fn()
+        self.start()
+
+    def _calibrate(self):
+        CalibrationDialog(self.win, self).exec()
         self.start()
 
     # --------------------------------------------------------------- Vorschau

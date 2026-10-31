@@ -4,7 +4,9 @@
 
 ### Virtual stitch-out
 - **Check design (`F7`) replaces the old Doctor.** You get a score out of 100, findings in plain language, a Show button that jumps to the spot and a Fix button where a one-click fix exists.
-- **Fabric pull simulation.** A spring model shows how thread tension pulls the fabric in, with a preview you can exaggerate. Earlier objects move when later ones are stitched, so it can warn about gaps between a fill and its outline. It is a model built on rules of thumb, not a replacement for a test stitch-out.
+- **Fabric pull simulation.** A spring model shows how thread tension pulls the fabric in, with a preview you can exaggerate. Earlier objects move when later ones are stitched, so it can warn about gaps between a fill and its outline. Until you calibrate a fabric, this is an estimate.
+- **Fixed rules and estimates are labelled.** Findings from the stitches are exact; only fabric pull is an estimate.
+- **Calibration with real fabric.** Stitch a small test bar, measure it, enter the width. The simulation and pull compensation then use the measured value for that fabric.
 - **Export check.** Every machine format is written, read back with an independent parser and compared stitch by stitch.
 - **Command line:** `python -m openstitch.analysis design.dst --fabric jersey --formats`.
 
@@ -37,7 +39,8 @@
 
 ### Project
 - Random shape tests, damaged file tests and a monkey test that clicks through the real window. Long versions run weekly.
-- Linux download in releases.
+- Linux download in releases. Every pull request now builds and self-tests the app on Windows, macOS (Apple Silicon and Intel) and Linux.
+- The README explains how to open the unsigned app on a Mac.
 
 ## v0.3.0 (2026-10-28)
 

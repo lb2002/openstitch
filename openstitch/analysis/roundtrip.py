@@ -100,6 +100,9 @@ def check_format(plan: StitchPlan, ext: str, folder: str | None = None) -> Round
     # Dateien sind auf die Motivmitte zentriert; Y-Richtung ist nach dem Lesen wieder Bildschirm-Y
     a = expected - (expected.min(axis=0) + expected.max(axis=0)) / 2
     b = pts - (pts.min(axis=0) + pts.max(axis=0)) / 2
+    if len(a) == len(b):
+        # Die Mitte der Umrandung ist auf 0.1 mm gerundet: am Schwerpunkt aller Stiche ausrichten
+        b = b + (a - b).mean(axis=0)
     forward = cKDTree(b).query(a)[0]
     backward = cKDTree(a).query(b)[0]
     r.max_error_mm = float(max(forward.max(), backward.max()))

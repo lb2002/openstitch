@@ -1,6 +1,7 @@
 """Sofortiger Splash-Screen & schneller Startpunkt für OpenStitch."""
 from __future__ import annotations
 
+import os
 import sys
 
 from PySide6.QtCore import QRectF, Qt, QTimer
@@ -59,6 +60,11 @@ def _create_splash_pixmap() -> QPixmap:
 
 
 def main():
+    if "--selftest" in sys.argv:
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        app = QApplication(sys.argv)  # noqa: F841 - Bild- und Schriftfunktionen brauchen die Instanz
+        from .selftest import run
+        sys.exit(run())
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
 

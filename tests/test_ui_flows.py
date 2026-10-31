@@ -286,6 +286,35 @@ def test_small_outline_text_is_flagged_but_micro_is_not():
     assert "small_text" not in codes(micro)
 
 
+def test_calibration_dialog_stores_measurement(win):
+    from openstitch.core.fabric import pull_scale, set_pull_scale
+    from openstitch.ui.check_dialog import CalibrationDialog
+    win.cmb_fabric.setCurrentIndex(win.cmb_fabric.findData("fleece"))
+    win._dirty = False      # sonst fragt das Laden des Testbalkens nach ungespeicherter Arbeit
+    dlg = CalibrationDialog(win)
+    dlg.load_patch()
+    win.wait_for_plan()
+    assert win.canvas.design.objects[0].pull_comp == 0.0
+    dlg.sp_width.setValue(4.2)
+    dlg.apply()
+    assert pull_scale("fleece") != 1.0
+    assert QSettings("OpenStitch", "OpenStitchStudio").value("calibration/fleece") is not None
+    fresh = MainWindow(defer_starter=True, show_tour_on_init=False)      # bleibt über Neustarts erhalten
+    assert pull_scale("fleece") != 1.0
+    fresh.close()
+    dlg.reset()
+    assert pull_scale("fleece") == 1.0
+    dlg.close()
+
+
+def test_packaged_app_selftest_passes(tmp_path, monkeypatch):
+    from openstitch import selftest
+    monkeypatch.chdir(tmp_path)
+    assert selftest.run() == 0
+    report = (tmp_path / selftest.REPORT_FILE).read_text(encoding="utf-8")
+    assert "languages" in report and "FAIL" not in report
+
+
 def test_all_finding_codes_have_texts():
     from openstitch.i18n import _TABLE
     for code in ("short_stitch", "over_max_stitch", "long_float", "no_lock", "orphan_run", "untrimmed_jump",

@@ -55,7 +55,9 @@
 
 ### 3. 🧪 Virtual stitch-out (`F7`)
 * **Check design:** a score out of 100, findings in plain language, a **Show** button that jumps to the spot and a **Fix** button where one click solves it.
-* **Fabric pull simulation:** see how thread tension pulls your chosen fabric in, and where outline and fill may no longer meet. It is a model built on rules of thumb, not a replacement for a test stitch-out.
+* **Fixed rules and estimates, clearly labelled:** stitch lengths, hoop limits, thread layers, lock stitches and the exported file follow exactly from the stitches. Only fabric pull is an estimate.
+* **Fabric pull simulation:** see how thread tension pulls your chosen fabric in, and where outline and fill may no longer meet.
+* **Calibration with real fabric:** stitch one small test bar, measure its width and enter it. The simulation and pull compensation then use your measured value for that fabric.
 * **Machine rules:** stitches too short or too long, loose floats, missing lock stitches, needle pile-ups, too many thread layers, hoop collisions.
 * **Export check:** files are read back with an independent parser and compared stitch by stitch.
 * **Command line:** `python -m openstitch.analysis design.dst --fabric jersey --formats`
@@ -92,6 +94,11 @@ Get the ready-made app from the **[GitHub release page (latest)](https://github.
 * 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** [`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)
 * 🍎 **macOS (Intel x64):** [`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip)
 * 🐧 **Linux (64-bit):** **[`OpenStitch-Studio-Linux-x64.tar.gz`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Linux-x64.tar.gz)** *(unpack, then run `OpenStitch-Studio`)*
+
+> 🍏 **Opening on a Mac:** OpenStitch is free and not signed with a paid Apple certificate, so macOS blocks it the first time. Move the app to *Applications*, try to open it once, then go to *System Settings → Privacy & Security* and click **Open Anyway**. If macOS says the app is damaged, run this once in Terminal:
+> ```bash
+> xattr -cr "/Applications/OpenStitch Studio.app"
+> ```
 
 ### Option B: run from source (Windows, macOS & Linux)
 Requires **Python 3.10+**.

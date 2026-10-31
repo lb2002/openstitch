@@ -53,7 +53,9 @@
 
 ### 3. 🧪 Virtueller Probestick (`F7`)
 * **Design prüfen:** Punktzahl bis 100, Befunde in Klartext, **Zeigen** springt zur Stelle, **Beheben** löst es mit einem Klick, wo das möglich ist.
-* **Stoffzug-Simulation:** zeigt, wie der Faden den gewählten Stoff zusammenzieht und wo Kontur und Füllung auseinanderlaufen können. Das ist ein Modell mit Erfahrungswerten und ersetzt keinen echten Probestick.
+* **Feste Regeln und Schätzungen, klar getrennt:** Stichlängen, Rahmengrenzen, Fadenlagen, Vernähstiche und die exportierte Datei folgen exakt aus den Stichen. Nur der Stoffzug ist eine Schätzung.
+* **Stoffzug-Simulation:** zeigt, wie der Faden den gewählten Stoff zusammenzieht und wo Kontur und Füllung auseinanderlaufen können.
+* **Kalibrierung mit echtem Stoff:** Einen kleinen Testbalken sticken, die Breite messen und eintragen. Simulation und Zugausgleich rechnen dann für diesen Stoff mit deinem Messwert.
 * **Maschinenregeln:** zu kurze und zu lange Stiche, lose Flottungen, fehlende Vernähstiche, Nadelhäufungen, zu viele Fadenlagen, Rahmenkollision.
 * **Export-Prüfung:** Dateien werden mit einem unabhängigen Parser neu eingelesen und Stich für Stich verglichen.
 * **Kommandozeile:** `python -m openstitch.analysis design.dst --fabric jersey --formats`
@@ -81,6 +83,11 @@ Lade dir auf der **[GitHub Release-Seite (latest)](https://github.com/lb2002/ope
 * 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** **[`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)** *(`OpenStitch Studio.app`)*
 * 🍎 **macOS (Intel x64):** **[`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip)** *(`OpenStitch Studio.app`)*
 * 🐧 **Linux (64-Bit):** **[`OpenStitch-Studio-Linux-x64.tar.gz`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Linux-x64.tar.gz)** *(entpacken, dann `OpenStitch-Studio` starten)*
+
+> 🍏 **Öffnen auf dem Mac:** OpenStitch ist kostenlos und nicht mit einem bezahlten Apple-Zertifikat signiert, deshalb blockiert macOS es beim ersten Mal. Verschiebe die App nach *Programme*, versuche einmal sie zu öffnen, gehe dann zu *Systemeinstellungen → Datenschutz & Sicherheit* und klicke **Trotzdem öffnen**. Meldet macOS, die App sei beschädigt, führe einmal im Terminal aus:
+> ```bash
+> xattr -cr "/Applications/OpenStitch Studio.app"
+> ```
 
 ---
 

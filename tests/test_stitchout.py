@@ -208,6 +208,46 @@ def test_fill_on_thin_triangle_ring_does_not_cross_the_hole():
     assert max(g.distance(p) for p in pts) < 1.0
 
 
+def test_calibration_makes_the_model_match_the_measurement():
+    from openstitch.analysis.calibrate import BAR_WIDTH, calibration_design, fit_scale, predicted_shrink
+    from openstitch.core.fabric import set_pull_scale, pull_scale
+    fab = fabric_by_id("jersey")
+    measured_shrink = 0.9
+    scale = fit_scale("jersey", BAR_WIDTH - measured_shrink)
+    assert abs(scale * predicted_shrink(fab) - measured_shrink) < 0.01
+    plan = calibration_design("jersey").build_plan()
+    t = Trace.of(plan)
+    set_pull_scale("jersey", scale)
+    try:
+        p = simulate_stitchout(None, plan, fab).pull
+        y = t.y[p.idx] + p.dy
+        m = np.abs(t.x[p.idx]) < 10
+        width = np.percentile(y[m], 99) - np.percentile(y[m], 1)
+        assert abs(width - (BAR_WIDTH - measured_shrink)) < 0.1      # Modell trifft jetzt den Messwert
+    finally:
+        set_pull_scale("jersey", None)
+    assert pull_scale("jersey") == 1.0
+
+
+def test_calibration_scales_pull_compensation():
+    from openstitch.core.fabric import set_pull_scale
+    def height(scale):
+        d = Design(fabric="jersey", objects=[SatinObject(RED, geom=LineString([(-9, 0), (9, 0)]).buffer(2, cap_style=2), pull_comp=0.2, underlay=False)])
+        set_pull_scale("jersey", scale)
+        try:
+            b = d.build_plan().bounds()
+        finally:
+            set_pull_scale("jersey", None)
+        return b[3] - b[1]
+    assert height(2.0) > height(None) + 0.5
+
+
+def test_fixed_rules_and_estimates_are_labelled():
+    from openstitch.analysis.report import Finding
+    assert Finding("registration_gap", "warning").is_estimate
+    assert not Finding("over_max_stitch", "error").is_estimate
+
+
 def test_legibility_measure_separates_distinct_letters():
     m = measure("OIX", 6.0, "builtin:micro")
     assert m.worst_pairs and m.worst_pairs[0][2] < 0.95

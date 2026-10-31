@@ -15,7 +15,7 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import splu
 
 from ..core.stitchplan import Cmd
-from ..core.fabric import Fabric
+from ..core.fabric import Fabric, pull_scale
 from .stitches import Trace, layers_map
 
 # Kalibriert: 4 mm Satin ohne Kompensation auf gewebter Baumwolle zieht sich um ~0.3 mm zusammen
@@ -128,7 +128,9 @@ def _chunks(t: Trace, idx: np.ndarray) -> np.ndarray:
     return np.searchsorted(order, blocks) // k
 
 
-def simulate_pull(t: Trace, fabric: Fabric) -> PullResult | None:
+def simulate_pull(t: Trace, fabric: Fabric, scale: float | None = None) -> PullResult | None:
+    """`scale`: Faktor auf den Fadenzug, ohne Angabe der gemessene Wert dieses Stoffs."""
+    tension = TENSION * (pull_scale(fabric.id) if scale is None else scale)
     idx = np.nonzero(t.cmd == Cmd.STITCH)[0]
     if len(idx) < 8:
         return None
@@ -153,7 +155,7 @@ def simulate_pull(t: Trace, fabric: Fabric) -> PullResult | None:
 
         K, free = _stiffness_matrix(grid, stiff)
         fx, fy = _forces(cx, cy)
-        f = grid.spread(cx, cy, fx * TENSION, fy * TENSION)
+        f = grid.spread(cx, cy, fx * tension, fy * tension)
         b = np.empty(2 * nx * ny)
         b[0::2], b[1::2] = f[..., 0].ravel(), f[..., 1].ravel()
         du = np.zeros(2 * nx * ny)

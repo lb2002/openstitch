@@ -39,6 +39,11 @@ Depuis la **[page des releases (latest)](https://github.com/lb2002/openstitch/re
 * 🍎 **macOS (Intel x64) :** [`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip)
 * 🐧 **Linux (64 bits) :** **[`OpenStitch-Studio-Linux-x64.tar.gz`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Linux-x64.tar.gz)** *(décompressez, puis lancez `OpenStitch-Studio`)*
 
+> 🍏 **Ouverture sur Mac :** OpenStitch est gratuit et n'est pas signé avec un certificat Apple payant, macOS le bloque donc la première fois. Déplacez l'app dans *Applications*, essayez de l'ouvrir une fois, puis allez dans *Réglages Système → Confidentialité et sécurité* et cliquez sur **Ouvrir quand même**. Si macOS indique que l'app est endommagée, exécutez une fois dans le Terminal :
+> ```bash
+> xattr -cr "/Applications/OpenStitch Studio.app"
+> ```
+
 ### Option B : depuis les sources
 Nécessite **Python 3.10+**.
 

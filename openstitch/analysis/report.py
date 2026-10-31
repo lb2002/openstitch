@@ -18,6 +18,10 @@ SMALL_TEXT_MM = 4.5
 PUCKER_MM = 0.7         # so weit zieht sich der Stoff zusammen, bevor man Wellen sieht
 
 
+# Diese Befunde kommen aus dem Stoffmodell. Alle anderen folgen exakt aus den Stichen und Grenzwerten.
+ESTIMATES = {"registration_gap", "puckering"}
+
+
 @dataclass
 class Finding:
     code: str
@@ -25,6 +29,10 @@ class Finding:
     count: int = 1
     where: list[tuple[float, float]] = field(default_factory=list)
     data: dict = field(default_factory=dict)
+
+    @property
+    def is_estimate(self) -> bool:
+        return self.code in ESTIMATES
 
 
 @dataclass

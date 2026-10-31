@@ -15,7 +15,7 @@ from ..engine.fill import fill_runs, join_covered_runs
 from ..engine.geom import Pt, clean, dist, lines_of, main_axis_angle, polygons_of, directional_grow
 from ..engine.running import bean_stitch, running_stitch, tie_stitches
 from ..engine.satin import UNDERLAY_STYLES, satin_runs
-from .fabric import fabric_by_id
+from .fabric import fabric_by_id, pull_scale
 from .stitchplan import Cmd, ColorBlock, Stitch, StitchPlan, Thread
 
 IDENTITY = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
@@ -573,11 +573,12 @@ class Design:
         # Rahmen- und Stoffeinflüsse an das Objekt übergeben
         fabric = fabric_by_id(self.fabric)
         obj._hoop_mode = self.hoop.mode
-        obj._hoop_pc_boost = self.hoop.pc_boost * fabric.pull_factor
+        measured = pull_scale(fabric.id)
+        obj._hoop_pc_boost = self.hoop.pc_boost * fabric.pull_factor * measured
         obj._density_factor = fabric.density_factor
         obj._hidden = self._hidden_under(obj, later)
         hidden_key = "" if obj._hidden is None else f"{obj._hidden.area:.3f}/{obj._hidden.length:.3f}"
-        key = obj.cache_key(start) + f"|{self.hoop.mode}|{fabric.id}|{hidden_key}"
+        key = obj.cache_key(start) + f"|{self.hoop.mode}|{fabric.id}|{measured}|{hidden_key}"
         r = self._cache.get((obj.id, key))
         if r is None:
             r = obj.runs(start)

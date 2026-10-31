@@ -35,5 +35,20 @@ FABRICS: list[Fabric] = [
 DEFAULT_FABRIC = FABRICS[0]
 
 
+# Gemessener Faktor je Stoff (siehe analysis.calibrate); 1.0 = noch nicht gemessen
+_pull_scale: dict[str, float] = {}
+
+
+def pull_scale(fid: str) -> float:
+    return _pull_scale.get(fid, 1.0)
+
+
+def set_pull_scale(fid: str, value: float | None) -> None:
+    if value is None:
+        _pull_scale.pop(fid, None)
+    else:
+        _pull_scale[fid] = float(value)
+
+
 def fabric_by_id(fid: str | None) -> Fabric:
     return next((f for f in FABRICS if f.id == fid), DEFAULT_FABRIC)
