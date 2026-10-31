@@ -35,7 +35,7 @@
   * Feine Konturen → **Dreifach-/Beanstich**
   * Schriften & Säulen → **Auto-Satinstich** mit fließend mitdrehendem Stichwinkel, Kurzstichen (Short-Stitches) in engen Innenkurven, Split-Satin bei breiten Säulen und automatischer Unterlage
   * Große Flächen → **Tatami-Füllstich** oder **gebogener Kontur-Füllstich (Contour Fill)** mit Boustrophedon-Abschnittszerlegung, unsichtbarem Travel-Routing entlang der Außenkante, Kanten-/Gitter-Unterlage und richtungsabhängiger Zugkompensation (Pull Compensation)
-* **Color-Trap vs. Smart Knockdown + 0.7 mm Überlappungslinie:** Verhindert einerseits brettharte Doppellagen („Bulletproof Embroidery“) und andererseits weiße Stoffblitzer (Passerlücken) zwischen angrenzenden Farbflächen.
+* **Verdecktes wird nicht gestickt:** Füllungen laufen nicht unter Objekten weiter, die sie ganz zudecken. Eine kleine Überlappung verhindert Lücken.
 * **Stoffprofile:** Standard (Baumwolle/Twill), Piqué/Polo/Strick, Frottee/Handtuch, Kappe/Cap, Leichter Stoff.
 * **Drag & Drop:** Ziehe Bilder (`.png`, `.jpg`, `.webp`), `.svg`-Vektorgrafiken oder Stickdateien direkt aus dem Explorer/Finder ins Programmfenster.
 
@@ -51,10 +51,12 @@
   ![OpenStitch Micro vs. TrueType bei 2.5 und 3 mm](./assets/micro_font_comparison.png)
 * **SVG-Vektor-Import** (Transformationen, Bögen, Stile, `<use>`, Füllregeln) & **TTF/OTF-Schrift-Generator** (inkl. Bogentext & automatischer Satin/Tatami-Wahl).
 
-### 3. 🩺 Stichdichte-Wächter, Heatmap & Qualitäts-Doktor (`F7`)
-* **Automatischer Anti-Fadenbruch-Filter (`density_guard`):** Verhindert Nadelkollisionen, Fadennester („Birdnesting“) und Stofflöcher.
-* **Live-Stichdichte-Heatmap:** Zeigt kritische Dichtestellen farbcodiert (Grün / Gelb / Rot) auf der Leinwand.
-* **Qualitäts-Doktor (`F7`):** Prüft vor dem Export Rahmen-Sicherheitsabstand, Nadelanzahl, Kurzstich-Spitzen und Fadenschnitte.
+### 3. 🧪 Virtueller Probestick (`F7`)
+* **Design prüfen:** Punktzahl bis 100, Befunde in Klartext, **Zeigen** springt zur Stelle, **Beheben** löst es mit einem Klick, wo das möglich ist.
+* **Stoffzug-Simulation:** zeigt, wie der Faden den gewählten Stoff zusammenzieht und wo Kontur und Füllung auseinanderlaufen können. Das ist ein Modell mit Erfahrungswerten und ersetzt keinen echten Probestick.
+* **Maschinenregeln:** zu kurze und zu lange Stiche, lose Flottungen, fehlende Vernähstiche, Nadelhäufungen, zu viele Fadenlagen, Rahmenkollision.
+* **Export-Prüfung:** Dateien werden mit einem unabhängigen Parser neu eingelesen und Stich für Stich verglichen.
+* **Kommandozeile:** `python -m openstitch.analysis design.dst --fabric jersey --formats`
 
 ### 4. 🏭 Herstellerneutral & Alle wichtigen Maschinenformate
 * **Integrierte Maschinenprofile & Rahmen-Strategien:**
@@ -78,6 +80,7 @@ Lade dir auf der **[GitHub Release-Seite (latest)](https://github.com/lb2002/ope
 * 🪟 **Windows (64-Bit Einzeldatei):** **[`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Windows-x64.exe)** *(einfach herunterladen & doppelklicken, kein Entpacken nötig!)*
 * 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** **[`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)** *(`OpenStitch Studio.app`)*
 * 🍎 **macOS (Intel x64):** **[`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip)** *(`OpenStitch Studio.app`)*
+* 🐧 **Linux (64-Bit):** **[`OpenStitch-Studio-Linux-x64.tar.gz`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Linux-x64.tar.gz)** *(entpacken, dann `OpenStitch-Studio` starten)*
 
 ---
 

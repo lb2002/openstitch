@@ -1,4 +1,4 @@
-name: Build Release Binaries (Windows & macOS M-Chip + Intel)
+name: Build Release Binaries (Windows, macOS M-Chip + Intel, Linux)
 
 on:
   workflow_dispatch:
@@ -35,6 +35,11 @@ jobs:
             arch: x64
             python: "3.11"
             asset_name: OpenStitch-Studio-Windows-x64.exe
+          - name: Linux-x64
+            os: ubuntu-22.04
+            arch: x64
+            python: "3.11"
+            asset_name: OpenStitch-Studio-Linux-x64.tar.gz
 
     runs-on: ${{ matrix.os }}
 
@@ -48,6 +53,12 @@ jobs:
           python-version: ${{ matrix.python }}
           architecture: ${{ matrix.arch }}
           cache: 'pip'
+
+      - name: Install Linux GUI libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libdbus-1-3
 
       - name: Install dependencies & PyInstaller
         run: |
@@ -70,12 +81,22 @@ jobs:
         run: |
           pyinstaller --noconfirm --onefile --windowed --name "OpenStitch-Studio-Windows-x64" --exclude-module pytest --exclude-module tkinter --exclude-module matplotlib main.py
 
+      - name: Build Linux single file
+        if: runner.os == 'Linux'
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name "OpenStitch-Studio" \
+            --exclude-module pytest --exclude-module tkinter --exclude-module matplotlib \
+            main.py
+          tar -C dist -czf "dist/${{ matrix.asset_name }}" OpenStitch-Studio
+
       - name: Upload to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
+          # Ein reiner Tag-Push ohne vorbereitete Notizen darf den Build nicht scheitern lassen
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --generate-notes || true
+          if [ "${{ runner.os }}" != "Windows" ]; then
             gh release upload "$RELEASE_TAG" "dist/${{ matrix.asset_name }}" --clobber
           else
             gh release upload "$RELEASE_TAG" "dist/OpenStitch-Studio-Windows-x64.exe" --clobber

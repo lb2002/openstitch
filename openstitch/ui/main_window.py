@@ -7,7 +7,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QSettings, QSize, QStandardPaths, Qt, QTimer, QUrl
 from PySide6.QtGui import (
-    QAction, QActionGroup, QColor, QDragEnterEvent, QDropEvent, QIcon, QKeySequence, QPainter, QPen, QPixmap,
+    QAction, QActionGroup, QColor, QDesktopServices, QDragEnterEvent, QDropEvent, QIcon, QKeySequence, QPainter,
+    QPen, QPixmap,
 )
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -39,14 +40,13 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from shapely.geometry import LineString, Point
 
 from .. import APP_NAME, __version__
 from ..auto.palette import CATALOG_PALETTES, active_palette, nearest_thread, set_active_palette
 from ..i18n import (
     LANGUAGES, current_lang, fmt_int, init_lang, key_for, machine_display_name, set_lang, tr, tr_opt,
 )
-from ..core.design import HOOPS, Design, EmbObject, FillObject, Hoop, RunObject, SatinObject, color_sorted
+from ..core.design import HOOPS, Design, EmbObject, Hoop, SatinObject, color_sorted
 from ..core.fabric import FABRICS, fabric_by_id
 from ..core.machines import MACHINE_PROFILES, MachineProfile
 from ..core.stitchplan import Thread
@@ -59,13 +59,15 @@ from .canvas import StitchCanvas
 from .check_dialog import DesignCheckDialog
 from .export_dialog import ExportDialog
 from .dialogs import AutoDigitizeDialog, MelcoDiskDialog, PhotoStitchDialog, TextDialog
-from .onboarding import InAppTourOverlay, OnboardingTourDialog, create_openstitch_logo_design, studio_icon
+from .onboarding import InAppTourOverlay, create_openstitch_logo_design, studio_icon
 from .plan_worker import PlanBuilder
 from .start_page import StartPage
 from . import theme
 from ..samples import SAMPLES
 
 IMAGE_EXT = ("png", "jpg", "jpeg", "bmp", "webp", "tif", "tiff", "gif")
+REPO_URL = "https://github.com/lb2002/openstitch"
+ISSUES_URL = f"{REPO_URL}/issues/new"
 AUTOSAVE_MS = 90_000
 MAX_RECENT = 8
 
@@ -417,7 +419,7 @@ class MainWindow(QMainWindow):
         tb.addWidget(spacer)
 
         # Maschine & Qualitätsprüfung
-        add_act(m_machine, "Qualitäts- & Maschinen-Doktor (Prüfung)", self.action_quality_doctor, "F7", "Prüfen", "doctor")
+        add_act(m_machine, "Design prüfen (virtueller Probestick)", self.action_quality_doctor, "F7", "Prüfen", "doctor")
         act_export = add_act(m_machine, "Stickdatei exportieren (EXP, DST, PES, JEF …) …", self.action_export_embroidery, "Ctrl+E", "Export", "export")
         btn_export = tb.widgetForAction(act_export)
         if btn_export is not None:
@@ -427,7 +429,11 @@ class MainWindow(QMainWindow):
 
         # Hilfe / Rundgang
         add_act(m_help, "Interaktiver Studio-Rundgang (Onboarding) …", self.action_show_tour, "F1", None, "tour")
+        add_act(m_help, "Tastenkürzel …", self.action_shortcuts)
         add_act(m_help, "Offizielles OpenStitch-Logo wiederherstellen", self._load_starter_design)
+        m_help.addSeparator()
+        add_act(m_help, "Problem melden …", lambda: QDesktopServices.openUrl(QUrl(ISSUES_URL)))
+        add_act(m_help, "Über OpenStitch …", self.action_about)
 
         # Bearbeiten
         m_edit.addSeparator()
@@ -708,7 +714,26 @@ class MainWindow(QMainWindow):
             if settings.value("show_tour_on_startup", True, type=bool):
                 QTimer.singleShot(280, self.action_show_tour)
 
+    def action_about(self):
+        QMessageBox.about(self, tr("act_about").rstrip(" …"), (
+            f"<h3>{APP_NAME} Studio {__version__}</h3><p>{tr('about_text')}</p>"
+            f'<p><a href="{REPO_URL}">{REPO_URL}</a></p>'))
+
+    def action_shortcuts(self):
+        rows = [("V", "key_select"), ("N", "key_nodes"), ("F", "key_fill"), ("S", "key_satin"), ("R", "key_run"),
+                ("Enter", "key_finish"), ("Esc", "key_cancel"), (tr("key_wheel"), "key_zoom"),
+                (tr("key_middle"), "key_pan")]
+        body = "".join(f"<tr><td><b>{k}</b>&nbsp;&nbsp;&nbsp;</td><td>{tr(t)}</td></tr>" for k, t in rows)
+        for a in self.findChildren(QAction):
+            sc = a.shortcut().toString(QKeySequence.NativeText)
+            if sc and a.text():
+                body += f"<tr><td><b>{sc}</b>&nbsp;&nbsp;&nbsp;</td><td>{a.text().replace('&&', '&amp;')}</td></tr>"
+        QMessageBox.information(self, tr("keys_title"), f"<table>{body}</table>")
+
     def action_show_tour(self):
+        if self.stack.currentWidget() is self.start_page:
+            self._tour_from_start()     # Der Rundgang erklärt die Arbeitsfläche, nicht die Startseite
+            return
         if self._tour_overlay is None:
             self._tour_overlay = InAppTourOverlay(self)
         self._tour_overlay.start_tour()

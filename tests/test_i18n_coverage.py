@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import pytest
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QAbstractButton, QApplication, QComboBox, QDockWidget, QGroupBox, QLabel
 from shapely.geometry import LineString, box
@@ -224,3 +225,74 @@ def test_dialogs_and_pdf_translated(tmp_path):
             assert out.stat().st_size > 1000
     finally:
         set_lang("de")
+
+
+# Wörter aus dem Rundgang, die GERMAN_ONLY nicht abdeckt, plus der alte Name der Design-Prüfung
+TOUR_STALE = ("Weiter", "Zurück", "Loslegen", "Fertig", "Beim Start", "Rundgang", "Leinwand", "Stoff", "Doktor",
+              "Doctor", "Docteur")
+
+
+def _tour_texts(tour) -> list[str]:
+    return _dialog_texts(tour) + [w.toolTip() for w in tour.findChildren(QAbstractButton) if w.toolTip()]
+
+
+def test_onboarding_tour_translated_and_follows_language():
+    from openstitch.ui.onboarding import InAppTourOverlay
+
+    for st in InAppTourOverlay.STEPS:  # Schlüssel in STEPS sieht der tr()-Scan nicht
+        for key in (st["badge"], st["title"], st["body"], st["action_label"]):
+            assert key is None or key in _TABLE, key
+
+    win = MainWindow(show_tour_on_init=False, defer_starter=True)
+    win.show()
+    overlay = InAppTourOverlay(win)
+    overlay.start_tour()
+    try:
+        for lang in ("en", "fr", "es"):
+            # Wechsel über die Sprachauswahl: Beide Rundgänge müssen ohne eigenes Weiterklicken folgen
+            win.cmb_lang.setCurrentIndex(next(i for i in range(win.cmb_lang.count()) if win.cmb_lang.itemData(i) == lang))
+            assert i18n.current_lang() == lang
+            assert overlay.lbl_title.text() == tr(overlay.STEPS[overlay.idx]["title"])
+            for tour in (overlay,):
+                for i in range(len(tour.STEPS)):
+                    tour.idx = i
+                    tour._refresh()
+                    texts = _tour_texts(tour)
+                    _assert_no_german(texts, f"{type(tour).__name__} Schritt {i + 1} ({lang})")
+                    hits = sorted({w for t in texts for w in TOUR_STALE if w in t})
+                    assert not hits, f"{type(tour).__name__} Schritt {i + 1} ({lang}): {hits}"
+                tour.idx = 0
+    finally:
+        set_lang("de")
+        overlay.close_tour()
+        win._dirty = False
+        win.close()
+
+
+EXTRA_LANGS = ("it", "pt", "nl", "pl", "tr")
+
+
+def _placeholders(text: str) -> list[str]:
+    return sorted(re.findall(r"\{[a-z_0-9]*\}", text))
+
+
+@pytest.mark.parametrize("lang", EXTRA_LANGS)
+def test_extra_languages_are_complete_and_keep_placeholders(lang):
+    table = i18n.extra_table(lang)
+    assert table, f"locales/{lang}.py fehlt"
+    assert set(_TABLE) - set(table) == set()
+    assert set(table) - set(_TABLE) == set()
+    for key, text in table.items():
+        assert _placeholders(text) == _placeholders(_TABLE[key][1]), key
+        assert text.strip(), key
+
+
+def test_unknown_key_in_extra_language_falls_back_to_english():
+    i18n._cur_lang[0] = "it"
+    try:
+        with_gap = dict(i18n.extra_table("it"))
+        i18n._extra_cache["it"] = {}
+        assert tr("tb_open") == _TABLE["tb_open"][1]
+        i18n._extra_cache["it"] = with_gap
+    finally:
+        i18n._cur_lang[0] = "de"

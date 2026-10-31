@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openstitch"
-version = "0.3.0"
+version = "0.4.0"
 description = "OpenStitch Studio — Universal Open-Source Embroidery & Digitizing Suite (DST, PES, EXP, JEF, VP3, U01)"
 readme = "README.md"
 license = {text = "AGPL-3.0-or-later"}
@@ -23,6 +23,9 @@ dependencies = [
     "fonttools>=4.40",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "hypothesis==6.135.0"]
+
 [project.urls]
 Homepage = "https://github.com/lb2002/openstitch"
 Repository = "https://github.com/lb2002/openstitch"
@@ -30,6 +33,10 @@ Issues = "https://github.com/lb2002/openstitch/issues"
 
 [project.scripts]
 openstitch = "openstitch.__main__:main"
+
+[tool.pytest.ini_options]
+# Hängt ein Test (z. B. ein ungeschlossener Dialog), zeigt das den Stack statt endlos zu warten
+faulthandler_timeout = 240
 
 [tool.setuptools.packages.find]
 include = ["openstitch*"]

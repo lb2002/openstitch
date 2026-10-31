@@ -28,7 +28,7 @@ BLUE = Thread((30, 30, 200), "b")
 
 @pytest.fixture()
 def win():
-    w = MainWindow(defer_starter=False, show_tour_on_init=False)
+    w = MainWindow(defer_starter=True, show_tour_on_init=False)
     w.show()
     yield w
     w._dirty = False
@@ -203,6 +203,29 @@ def test_export_dialog_writes_and_verifies(win, tmp_path, monkeypatch):
     dlg.close()
 
 
+def test_export_dialog_never_overwrites_silently(win, tmp_path, monkeypatch):
+    from openstitch.ui import export_dialog as ed
+    monkeypatch.setattr(ed, "removable_drives", lambda: [(str(tmp_path), "STICK")])
+    win.set_design(corpus.build("fill_islands"), reset_undo=True)
+    win.wait_for_plan()
+    dlg = ed.ExportDialog(win)
+    existing = Path(dlg.target_path())
+    existing.write_bytes(b"wertvoll")
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.No))
+    dlg.save()
+    assert existing.read_bytes() == b"wertvoll" and dlg.saved_path is None
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes))
+    # Schlägt das Schreiben fehl, bleibt die alte Datei erhalten und kein Rest liegt herum
+    monkeypatch.setattr(ed, "verify_exported_file", lambda *a, **k: (_ for _ in ()).throw(ValueError("kaputt")))
+    dlg.save()
+    assert existing.read_bytes() == b"wertvoll" and len(list(tmp_path.iterdir())) == 1
+    monkeypatch.undo()
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes))
+    dlg.save()
+    assert existing.read_bytes() != b"wertvoll" and dlg.saved_path == str(existing)
+    dlg.close()
+
+
 def test_export_dialog_reports_write_errors(win, tmp_path, monkeypatch):
     from openstitch.ui import export_dialog as ed
     monkeypatch.setattr(ed, "removable_drives", lambda: [(str(tmp_path / "nicht-da"), "WEG")])
@@ -235,11 +258,39 @@ def test_text_dialog_allows_small_lettering_and_suggests_micro(win):
     dlg.close()
 
 
+def test_crash_report_is_written(win, monkeypatch):
+    from openstitch.ui import crash
+    shown = []
+    monkeypatch.setattr(QMessageBox, "critical", staticmethod(lambda *a, **k: shown.append(a)))
+    old = sys.excepthook
+    try:
+        crash.install(win)
+        try:
+            raise RuntimeError("Testfehler")
+        except RuntimeError:
+            tp, val, tb = sys.exc_info()
+            sys.excepthook(tp, val, tb)
+        assert shown
+        with open(crash.log_path(), encoding="utf-8") as f:
+            assert "Testfehler" in f.read()
+    finally:
+        sys.excepthook = old
+
+
+def test_small_outline_text_is_flagged_but_micro_is_not():
+    from openstitch.text import TextObject
+    small = TextObject(RED, text="Ab", height=3.0)
+    micro = TextObject(RED, text="Ab", height=3.0, font="builtin:micro")
+    codes = lambda o: {f.code for f in simulate_stitchout(Design(objects=[o]), Design(objects=[o]).build_plan(), physics=False).findings}
+    assert "small_text" in codes(small)
+    assert "small_text" not in codes(micro)
+
+
 def test_all_finding_codes_have_texts():
     from openstitch.i18n import _TABLE
     for code in ("short_stitch", "over_max_stitch", "long_float", "no_lock", "orphan_run", "untrimmed_jump",
                  "needle_pileup", "too_dense", "outside_hoop", "low_coverage", "too_many_colors",
-                 "registration_gap", "puckering"):
+                 "registration_gap", "puckering", "small_text"):
         assert f"chk_{code}_t" in _TABLE and f"chk_{code}_d" in _TABLE
 
 

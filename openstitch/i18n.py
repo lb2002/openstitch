@@ -1,4 +1,7 @@
-"""Mehrsprachige Lokalisierung (DE, EN, FR, ES) für OpenStitch Studio."""
+"""Mehrsprachige Lokalisierung für OpenStitch Studio.
+
+DE, EN, FR und ES stehen in `_TABLE`. Weitere Sprachen liegen je als eigene Datei in `locales/` und
+werden erst geladen, wenn man sie wählt; fehlende Texte fallen auf Englisch zurück."""
 from __future__ import annotations
 
 from PySide6.QtCore import QLocale, QSettings
@@ -8,15 +11,31 @@ LANGUAGES: list[tuple[str, str]] = [
     ("en", "🇬🇧 English"),
     ("fr", "🇫🇷 Français"),
     ("es", "🇪🇸 Español"),
+    ("it", "🇮🇹 Italiano"),
+    ("pt", "🇵🇹 Português"),
+    ("nl", "🇳🇱 Nederlands"),
+    ("pl", "🇵🇱 Polski"),
+    ("tr", "🇹🇷 Türkçe"),
 ]
+_SUPPORTED = {code for code, _ in LANGUAGES}
+_COLUMN = {"de": 0, "en": 1, "fr": 2, "es": 3}
+_extra_cache: dict[str, dict[str, str]] = {}
 
 _cur_lang = ["de"]
+
+
+def extra_table(lang: str) -> dict[str, str]:
+    """Texte einer Sprache aus `locales/`, geladen erst beim ersten Gebrauch."""
+    if lang not in _extra_cache:
+        from .locales import TABLES
+        _extra_cache[lang] = TABLES.get(lang, {})
+    return _extra_cache[lang]
 
 
 def init_lang() -> str:
     s = QSettings("OpenStitch", "OpenStitchStudio")
     lang = s.value("ui/lang", "", type=str) or QLocale.system().name()[:2]
-    if lang not in ("de", "en", "fr", "es"):
+    if lang not in _SUPPORTED:
         lang = "en"     # Beim ersten Start die Sprache des Systems, sonst Englisch
     _cur_lang[0] = lang
     return lang
@@ -27,7 +46,7 @@ def current_lang() -> str:
 
 
 def set_lang(lang: str) -> None:
-    if lang in ("de", "en", "fr", "es"):
+    if lang in _SUPPORTED:
         _cur_lang[0] = lang
         s = QSettings("OpenStitch", "OpenStitchStudio")
         s.setValue("ui/lang", lang)
@@ -55,7 +74,6 @@ _TABLE: dict[str, tuple[str, str, str, str]] = {
     "tb_applique": ("Appliqué", "Appliqué", "Appliqué", "Aplique"),
     "tb_puff": ("3D-Puff", "3D-Puff", "3D-Puff", "3D-Puff"),
     "tb_transfer": ("Transfer", "Transfer", "Transfert", "Transferir"),
-    "tb_doctor": ("Doktor", "Doctor", "Docteur", "Doctor"),
     "tb_tour": ("Rundgang", "Tour", "Visite", "Guía"),
 
     # Kontextleiste über der Leinwand
@@ -149,8 +167,10 @@ def tr(key: str) -> str:
     row = _TABLE.get(key)
     if not row:
         return key
-    idx = {"de": 0, "en": 1, "fr": 2, "es": 3}.get(_cur_lang[0], 0)
-    return row[idx]
+    lang = _cur_lang[0]
+    if lang in _COLUMN:
+        return row[_COLUMN[lang]]
+    return extra_table(lang).get(key, row[1])
 
 
 _TABLE.update({
@@ -170,7 +190,8 @@ _TABLE.update({
     "m_applique": ("Aus Fläche Applikation (Appliqué) erzeugen", "Create appliqué from shape", "Créer un appliqué depuis la forme", "Crear aplique desde la forma"),
     "m_puff": ("3D-Puff-Schaumstoff-Modus für Satin umschalten", "Toggle 3D puff foam mode for satin", "Activer le mode mousse 3D pour le satin", "Activar modo espuma 3D para satén"),
     "m_transfer": ("Maschinen-Transfer / Diskette / USB / NetBridge …", "Machine transfer / floppy / USB / NetBridge …", "Transfert machine / disquette / USB / NetBridge …", "Transferencia a máquina / disquete / USB / NetBridge …"),
-    "m_doctor": ("Qualitäts- & Maschinen-Doktor (Prüfung)", "Quality & Machine Doctor (check)", "Docteur qualité & machine (contrôle)", "Doctor de calidad y máquina (revisión)"),
+    "m_doctor": ("Design prüfen (virtueller Probestick)", "Check design (virtual stitch-out)",
+                 "Vérifier le motif (essai virtuel)", "Revisar diseño (prueba virtual)"),
     "m_optimize": ("Farben minimieren (Nadelwechsel sparen)", "Minimize colors (save needle changes)", "Minimiser les couleurs (moins de changements)", "Minimizar colores (menos cambios de aguja)"),
     "m_tour": ("Interaktiver Studio-Rundgang (Onboarding) …", "Interactive studio tour (onboarding) …", "Visite interactive du studio …", "Guía interactiva del estudio …"),
     "m_restore_logo": ("Offizielles OpenStitch-Logo wiederherstellen", "Restore official OpenStitch logo", "Restaurer le logo officiel OpenStitch", "Restaurar el logotipo oficial de OpenStitch"),
@@ -234,6 +255,39 @@ _TABLE.update({
                       "Para un texto tan pequeño, usa «OpenStitch Micro» (haz clic aquí)"),
 })
 
+# Hilfe, Fehlerbericht
+_TABLE.update({
+    "act_shortcuts": ("Tastenkürzel …", "Keyboard shortcuts …", "Raccourcis clavier …", "Atajos de teclado …"),
+    "act_report": ("Problem melden …", "Report a problem …", "Signaler un problème …", "Informar de un problema …"),
+    "act_about": ("Über OpenStitch …", "About OpenStitch …", "À propos d'OpenStitch …", "Acerca de OpenStitch …"),
+    "about_text": ("Freie Stick- und Digitalisier-Software. Lizenz: AGPL-3.0, der Quellcode ist frei verfügbar.",
+                   "Free embroidery and digitizing software. License: AGPL-3.0, the source code is freely available.",
+                   "Logiciel libre de broderie et de numérisation. Licence : AGPL-3.0, le code source est librement disponible.",
+                   "Software libre de bordado y digitalización. Licencia: AGPL-3.0, el código fuente está disponible."),
+    "keys_title": ("Tastenkürzel", "Keyboard shortcuts", "Raccourcis clavier", "Atajos de teclado"),
+    "key_select": ("Auswählen und verschieben", "Select and move", "Sélectionner et déplacer", "Seleccionar y mover"),
+    "key_nodes": ("Knoten bearbeiten", "Edit nodes", "Modifier les nœuds", "Editar nodos"),
+    "key_fill": ("Fläche zeichnen", "Draw fill", "Dessiner un remplissage", "Dibujar relleno"),
+    "key_satin": ("Satinsäule zeichnen", "Draw satin column", "Dessiner une colonne satin", "Dibujar columna de satén"),
+    "key_run": ("Steppstich zeichnen", "Draw running stitch", "Dessiner un point droit", "Dibujar puntada recta"),
+    "key_finish": ("Zeichnen beenden", "Finish drawing", "Terminer le dessin", "Terminar el dibujo"),
+    "key_cancel": ("Zeichnen abbrechen", "Cancel drawing", "Annuler le dessin", "Cancelar el dibujo"),
+    "key_zoom": ("Zoomen", "Zoom", "Zoomer", "Ampliar"),
+    "key_pan": ("Ansicht verschieben", "Pan the view", "Déplacer la vue", "Desplazar la vista"),
+    "key_wheel": ("Mausrad", "Mouse wheel", "Molette", "Rueda del ratón"),
+    "key_middle": ("Mittlere Maustaste", "Middle mouse button", "Bouton central", "Botón central"),
+    "crash_title": ("Das hätte nicht passieren dürfen", "That should not have happened", "Cela n'aurait pas dû arriver",
+                    "Esto no debería haber pasado"),
+    "crash_text": ("OpenStitch hat einen Fehler bemerkt. Deine Arbeit wurde gesichert und du kannst weitermachen.\n\n"
+                   "Wenn du das Problem melden möchtest, hänge bitte diese Datei an:\n{}",
+                   "OpenStitch ran into an error. Your work was saved and you can carry on.\n\n"
+                   "If you would like to report it, please attach this file:\n{}",
+                   "OpenStitch a rencontré une erreur. Votre travail a été sauvegardé et vous pouvez continuer.\n\n"
+                   "Pour la signaler, joignez ce fichier :\n{}",
+                   "OpenStitch encontró un error. Tu trabajo se guardó y puedes continuar.\n\n"
+                   "Si quieres informar del problema, adjunta este archivo:\n{}"),
+})
+
 # An die Maschine senden
 _TABLE.update({
     "exp_title": ("An die Maschine senden", "Send to machine", "Envoyer à la machine", "Enviar a la máquina"),
@@ -260,6 +314,8 @@ _TABLE.update({
                  "“{name}” saved and verified: {st} stitches read back correctly. Now plug the stick into your machine.",
                  "« {name} » enregistré et vérifié : {st} points relus correctement. Branchez la clé sur la machine.",
                  "«{name}» guardado y verificado: {st} puntadas leídas correctamente. Conecta la memoria a la máquina."),
+    "exp_overwrite": ("„{}“ gibt es dort schon. Ersetzen?", "“{}” already exists there. Replace it?",
+                      "« {} » existe déjà à cet endroit. Le remplacer ?", "«{}» ya existe ahí. ¿Reemplazarlo?"),
     "exp_done_plain": ("„{name}“ gespeichert.", "“{name}” saved.", "« {name} » enregistré.", "«{name}» guardado."),
     "exp_failed": ("Speichern fehlgeschlagen: {}", "Could not save: {}", "Échec de l'enregistrement : {}",
                    "No se pudo guardar: {}"),
@@ -366,6 +422,12 @@ _TABLE.update({
                         "The embroidery pulls the fabric in by about {mm} mm. Use a firmer stabilizer.",
                         "La broderie resserre le tissu d'environ {mm} mm. Utilisez un stabilisateur plus ferme.",
                         "El bordado encoge la tela unos {mm} mm. Usa un estabilizador más firme."),
+    "chk_small_text_t": ("Schrift zu klein für diese Schriftart", "Lettering too small for this font",
+                         "Texte trop petit pour cette police", "Texto demasiado pequeño para esta fuente"),
+    "chk_small_text_d": ("„{object}“ ist {mm} mm hoch. Umriss-Schriften laufen so klein zu. Nimm „OpenStitch Micro“.",
+                         "“{object}” is {mm} mm tall. Outline fonts fill in at this size. Use “OpenStitch Micro”.",
+                         "« {object} » mesure {mm} mm. Les polices à contour se bouchent à cette taille. Utilisez « OpenStitch Micro ».",
+                         "«{object}» mide {mm} mm. Las fuentes de contorno se cierran a este tamaño. Usa «OpenStitch Micro»."),
     "chk_export_ok_t": ("{ext}-Datei geprüft", "{ext} file verified", "Fichier {ext} vérifié", "Archivo {ext} verificado"),
     "chk_export_ok_d": ("{st} Stiche neu eingelesen, grösste Abweichung {err} mm.",
                         "{st} stitches read back, largest error {err} mm.",
@@ -479,65 +541,6 @@ _TABLE.update({
         "«{name}» está dañado o no es un archivo de proyecto de OpenStitch."),
 })
 
-# Qualitäts-Doktor
-_TABLE.update({
-    "doc_empty": ("Das Design enthält noch keine Stiche.", "The design has no stitches yet.",
-                  "Le motif ne contient encore aucun point.", "El diseño aún no tiene puntadas."),
-    "doc_hoop_round": (
-        "⚠ RAHMEN-KOLLISIONSGEFAHR: Das Motiv (Radius {r} mm) reicht an den Rand des Rundrahmens ({hoop}, Radius {hr} mm). "
-        "Wähle einen grösseren Rahmen oder zentriere/verkleinere das Motiv.",
-        "⚠ HOOP COLLISION RISK: the design (radius {r} mm) reaches the edge of the round hoop ({hoop}, radius {hr} mm). "
-        "Pick a larger hoop or centre/shrink the design.",
-        "⚠ RISQUE DE COLLISION AVEC LE CADRE : le motif (rayon {r} mm) atteint le bord du cadre rond ({hoop}, rayon {hr} mm). "
-        "Choisissez un cadre plus grand ou centrez/réduisez le motif.",
-        "⚠ RIESGO DE CHOQUE CON EL BASTIDOR: el diseño (radio {r} mm) llega al borde del bastidor redondo ({hoop}, radio {hr} mm). "
-        "Elige un bastidor mayor o centra/reduce el diseño."),
-    "doc_hoop_rect": (
-        "⚠ RAHMEN-KOLLISIONSGEFAHR: Das Motiv ({w}×{h} mm) überschreitet das sichere Stickfeld des Rahmens ({hw}×{hh} mm).",
-        "⚠ HOOP COLLISION RISK: the design ({w}×{h} mm) exceeds the hoop's safe sewing field ({hw}×{hh} mm).",
-        "⚠ RISQUE DE COLLISION AVEC LE CADRE : le motif ({w}×{h} mm) dépasse la zone de broderie sûre du cadre ({hw}×{hh} mm).",
-        "⚠ RIESGO DE CHOQUE CON EL BASTIDOR: el diseño ({w}×{h} mm) supera el área segura del bastidor ({hw}×{hh} mm)."),
-    "doc_colors": (
-        "⚠ ZU VIELE FARBEN: Das Design verwendet {n} Garnfarben, die Maschine hat {needles} Nadeln. "
-        "Reduziere die Farben oder plane einen manuellen Garnwechsel ein.",
-        "⚠ TOO MANY COLOURS: the design uses {n} thread colours but the machine has {needles} needles. "
-        "Reduce colours or plan a manual thread change.",
-        "⚠ TROP DE COULEURS : le motif utilise {n} couleurs de fil, la machine a {needles} aiguilles. "
-        "Réduisez les couleurs ou prévoyez un changement de fil manuel.",
-        "⚠ DEMASIADOS COLORES: el diseño usa {n} colores de hilo y la máquina tiene {needles} agujas. "
-        "Reduce los colores o planifica un cambio de hilo manual."),
-    "doc_small_text": (
-        "⚠ KLEINE SCHRIFT ({name}, {h} mm): Umriss-Schriften unter 4.5 mm laufen auf Stoff oft zu. "
-        "Tipp: Für kleine Schrift die Schriftart „OpenStitch Micro“ verwenden.",
-        "⚠ SMALL LETTERING ({name}, {h} mm): outline fonts below 4.5 mm tend to fill in on fabric. "
-        "Tip: use the “OpenStitch Micro” font for small lettering.",
-        "⚠ PETIT TEXTE ({name}, {h} mm) : sous 4,5 mm, les polices à contour se bouchent souvent sur le tissu. "
-        "Astuce : utilisez la police « OpenStitch Micro » pour les petits textes.",
-        "⚠ TEXTO PEQUEÑO ({name}, {h} mm): las fuentes de contorno por debajo de 4,5 mm suelen cerrarse en la tela. "
-        "Consejo: usa la fuente «OpenStitch Micro» para texto pequeño."),
-    "doc_satin_density": (
-        "⚠ HOHE SATIN-DICHTE ({name}, {sp} mm): Dichte unter 0.28 mm kann zu Fadenbruch führen (empfohlen: 0.36–0.42 mm).",
-        "⚠ HIGH SATIN DENSITY ({name}, {sp} mm): spacing below 0.28 mm can break threads (recommended: 0.36–0.42 mm).",
-        "⚠ DENSITÉ SATIN ÉLEVÉE ({name}, {sp} mm) : un espacement sous 0,28 mm peut casser le fil (conseillé : 0,36–0,42 mm).",
-        "⚠ DENSIDAD DE SATÉN ALTA ({name}, {sp} mm): un espaciado inferior a 0,28 mm puede romper el hilo "
-        "(recomendado: 0,36–0,42 mm)."),
-    "doc_density": (
-        "⚠ DICHTE-SPITZEN: An {n} Stellen (1×1 mm) liegen mehr als 14 Stiche übereinander "
-        "(Strg+H zeigt die Heatmap).",
-        "⚠ DENSITY HOT SPOTS: {n} places (1×1 mm) have more than 14 stitches on top of each other "
-        "(Ctrl+H shows the heatmap).",
-        "⚠ PICS DE DENSITÉ : {n} zones (1×1 mm) comptent plus de 14 points superposés "
-        "(Ctrl+H affiche la carte de densité).",
-        "⚠ PICOS DE DENSIDAD: en {n} puntos (1×1 mm) hay más de 14 puntadas superpuestas "
-        "(Ctrl+H muestra el mapa de calor)."),
-    "doc_ok": (
-        "✅ Keine Probleme gefunden ({st} Stiche, {n} von {needles} Nadeln, sicher im Rahmen {hoop}).",
-        "✅ No problems found ({st} stitches, {n} of {needles} needles, safely inside {hoop}).",
-        "✅ Aucun problème détecté ({st} points, {n} aiguilles sur {needles}, bien dans le cadre {hoop}).",
-        "✅ No se encontraron problemas ({st} puntadas, {n} de {needles} agujas, dentro del bastidor {hoop})."),
-})
-
-
 def tr_all(key: str) -> list[str]:
     return list(_TABLE.get(key, (key,) * 4))
 
@@ -549,8 +552,8 @@ def tr_opt(key: str, fallback: str) -> str:
 
 # Zahlenformat je Sprache: Tausendertrennzeichen und Dezimalzeichen
 # (de: Schweizer Apostroph, fr: schmales geschütztes Leerzeichen)
-_GROUP_SEP = {"de": "’", "en": ",", "fr": " ", "es": "."}
-_DEC_SEP = {"de": ".", "en": ".", "fr": ",", "es": ","}
+_GROUP_SEP = {"de": "’", "en": ",", "fr": " ", "es": ".", "it": ".", "pt": "\u00a0", "nl": ".", "pl": "\u00a0", "tr": "."}
+_DEC_SEP = {"de": ".", "en": ".", "fr": ",", "es": ",", "it": ",", "pt": ",", "nl": ",", "pl": ",", "tr": ","}
 
 
 def fmt_int(n) -> str:
@@ -698,8 +701,6 @@ _TABLE.update({
                           "Please select a fill or satin shape on the canvas first.",
                           "Veuillez d'abord sélectionner une forme sur le canevas.",
                           "Primero selecciona una forma en el lienzo."),
-    "msg_doctor_title": ("Qualitäts- & Maschinen-Doktor", "Quality & Machine Doctor",
-                         "Docteur qualité & machine", "Doctor de calidad y máquina"),
     "msg_export_verified_title": ("Export & Binär-Verifikation erfolgreich", "Export & binary verification successful",
                                   "Export et vérification binaire réussis",
                                   "Exportación y verificación binaria correctas"),
@@ -1123,3 +1124,6 @@ _TABLE.update({
                      "Séquence de couleurs et attribution des aiguilles ({} aiguilles)",
                      "Secuencia de colores y asignación de agujas ({} agujas)"),
 })
+
+from .i18n_tour import TOUR_TABLE  # noqa: E402
+_TABLE.update(TOUR_TABLE)

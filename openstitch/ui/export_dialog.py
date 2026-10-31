@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import re
 
-from PySide6.QtCore import QStandardPaths, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -12,12 +12,12 @@ from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
     QFormLayout,
-    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
 )
@@ -184,22 +184,40 @@ class ExportDialog(QDialog):
         self.lbl_path.setText(self.target_path())
 
     # -------------------------------------------------------------- Speichern
+    def _may_replace(self, path: str) -> bool:
+        """Kurze Namen kollidieren leicht: Eine vorhandene Datei wird nie stillschweigend ersetzt."""
+        if not os.path.exists(path):
+            return True
+        ans = QMessageBox.question(self, tr("exp_title"), tr("exp_overwrite").format(os.path.basename(path)),
+                                   QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        return ans == QMessageBox.Yes
+
     def save(self):
         path = self.target_path()
+        if not self._may_replace(path):
+            return
         plan = self.win.canvas.plan
         self.lbl_result.setProperty("severity", "ok")
+        # Erst neben dem Ziel schreiben und prüfen: Ein Fehler lässt die alte Datei unberührt
+        stem, ext = os.path.splitext(path)
+        tmp = f"{stem}.partial{ext}"
         try:
-            export_plan(plan, path)
+            export_plan(plan, tmp)
             if self.cmb_format.currentData() in MACHINE_EXT:
-                rep = verify_exported_file(path, plan)
+                rep = verify_exported_file(tmp, plan)
                 msg = tr("exp_done").format(st=fmt_int(rep["stitches"]), name=os.path.basename(path))
             else:
                 msg = tr("exp_done_plain").format(name=os.path.basename(path))
+            os.replace(tmp, path)
             self.saved_path = path
             self.btn_close.setDefault(True)
             self.lbl_result.setText(msg)
         except Exception as exc:  # noqa: BLE001 - Schreibschutz, voller Stick, ungültiger Pfad …
             self.lbl_result.setProperty("severity", "error")
             self.lbl_result.setText(tr("exp_failed").format(exc))
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
         self.lbl_result.style().unpolish(self.lbl_result)
         self.lbl_result.style().polish(self.lbl_result)

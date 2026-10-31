@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pytest
 from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
-from PySide6.QtGui import QAction, QKeyEvent, QMouseEvent, QWheelEvent
+from PySide6.QtGui import QAction, QDesktopServices, QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -36,8 +36,8 @@ from openstitch.io.project import save_project
 from openstitch.ui.main_window import MainWindow
 
 _app = QApplication.instance() or QApplication(sys.argv)
-STEPS = int(os.environ.get("OPENSTITCH_MONKEY_STEPS", "400"))
-SEEDS = [int(s) for s in os.environ.get("OPENSTITCH_MONKEY_SEEDS", "1,2,3").split(",")]
+STEPS = int(os.environ.get("OPENSTITCH_MONKEY_STEPS", "150"))
+SEEDS = [int(s) for s in os.environ.get("OPENSTITCH_MONKEY_SEEDS", "1").split(",")]
 
 # Beenden und Fensterschliessen würden den Test beenden
 SKIP_TEXT = ("beenden", "quit", "exit", "quitter", "salir")
@@ -115,6 +115,9 @@ def dialogs_closed(monkeypatch, tmp_path):
     monkeypatch.setattr(MainWindow, "_ask_open_file", pick_open)
     monkeypatch.setattr(MainWindow, "_ask_save_file", pick_save)
     monkeypatch.setattr(QDialog, "exec", lambda self: 0)
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.Discard)
+    monkeypatch.setattr(QMessageBox, "about", staticmethod(lambda *a, **k: None))
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(lambda *a, **k: True))
     monkeypatch.setattr(QMessageBox, "information", staticmethod(lambda *a, **k: QMessageBox.Ok))
     monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: QMessageBox.Ok))
     monkeypatch.setattr(QMessageBox, "critical", staticmethod(lambda *a, **k: QMessageBox.Ok))

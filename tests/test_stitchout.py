@@ -177,6 +177,37 @@ def test_density_guard_never_creates_long_stitches():
     assert max(abs(a.y - b.y) for a, b in zip(out, out[1:])) < 13.0
 
 
+@pytest.mark.parametrize("name", ["Grün", "Weiß", "Çelik ı", "Żółty", "緑"])
+def test_accented_thread_names_do_not_corrupt_files(name):
+    """VP3: pyembroidery zählt Zeichen statt Bytes, ein einziges ü machte die Datei unlesbar."""
+    d = Design(objects=[FillObject(Thread((30, 150, 70), name, name, name), geom=box(-10, -10, 10, 10))])
+    plan = d.build_plan()
+    for ext in MACHINE_FORMATS:
+        r = check_format(plan, ext)
+        assert r.ok, (ext, r.problems)
+
+
+def test_hidden_travel_keeps_the_corner_at_the_ring_start():
+    """Der Weg entlang einer Kante darf die Ecke am Ringanfang nicht abschneiden (Stich quer durchs Loch)."""
+    from shapely.geometry import LinearRing, Point as P
+    from openstitch.engine.geom import path_along_ring
+    ring = LinearRing([(0, 0), (20, 0), (20, 20), (0, 20)])     # Start in der Ecke (0, 0)
+    for a, b in (((0, 5), (5, 0)), ((5, 0), (0, 5))):
+        path = path_along_ring(ring, a, b)
+        assert (0.0, 0.0) in [tuple(p) for p in path]
+        assert all(ring.distance(P(p)) < 1e-6 for p in path)
+
+
+def test_fill_on_thin_triangle_ring_does_not_cross_the_hole():
+    from shapely.geometry import MultiPoint, Point as P
+    g = MultiPoint([(11.0, 0.0), (16.0, 16.0), (-27.0, 0.0)]).convex_hull
+    g = g.difference(g.buffer(-1.5))
+    d = Design(objects=[FillObject(RED, geom=g, angle=0)])
+    t = Trace.of(d.build_plan())
+    pts = [P(x, y) for x, y, c in zip(t.x, t.y, t.cmd) if c == Cmd.STITCH]
+    assert max(g.distance(p) for p in pts) < 1.0
+
+
 def test_legibility_measure_separates_distinct_letters():
     m = measure("OIX", 6.0, "builtin:micro")
     assert m.worst_pairs and m.worst_pairs[0][2] < 0.95

@@ -22,7 +22,8 @@
 * 🪄 **Auto-Digitalizador (imagen / logotipo → archivo de bordado):** reducción de color en CIE-Lab, correspondencia con catálogos reales (**Madeira Polyneon 40, Isacord 40, Gunold Poly 40, Brother**), eliminación automática del fondo, detección del tipo de puntada (pespunte triple, **satén automático**, **tatami** / relleno de contorno), compensación de tirantez, entretela y solape de 0,7 mm entre colores.
 * 🎨 **Digitalización manual:** herramientas Tatami (`F`), Satén (`S`), Pespunte (`R`), editor de nodos (`N`), inspector paramétrico en vivo, columnas de satén a lo largo de la línea central dibujada, fuente de bordado **OpenStitch Micro** legible desde 2,5 mm, texto TTF/OTF con arco, importación SVG y arrastrar y soltar.
 * 🧵 **Herramientas pro:** modo espuma 3D (gorras), **aplique en 1 clic**, **PhotoStitch** (foto → bordado monocromo, sepia o CMYK).
-* 🩺 **Control de calidad:** filtro anti-rotura de hilo, mapa de densidad en vivo, **doctor de calidad (`F7`)** y **verificación binaria** de cada archivo exportado.
+* 🧪 **Prueba de bordado virtual (`F7`):** nota sobre 100, avisos en lenguaje claro con botones **Mostrar** y **Corregir**, simulación del tiro de la tela y relectura de cada archivo exportado. Es un modelo basado en reglas prácticas y no sustituye a una prueba real.
+* 🧶 **Elección de tela:** algodón, vaquero, gorra, piqué, camiseta, polar, rizo, cuero, seda. La densidad y la compensación se ajustan, y se indican el estabilizador y la aguja.
 * 🏭 **Neutral respecto a fabricantes:** DST, PES, EXP, JEF, VP3, U01; perfiles para Tajima, Brother, Barudan, Ricoma/ZSK, Janome/Bernina, Pfaff/Husqvarna y Melco (gestor de disquete FAT12 `.IMG` incluido).
 * 🌍 **4 idiomas** conmutables al instante: 🇬🇧 🇩🇪 🇫🇷 🇪🇸.
 * 📄 **Hoja de producción PDF A4:** agujas, consumo de hilo, número de puntadas y tiempo estimado.
@@ -36,6 +37,7 @@ Desde la **[página de releases (latest)](https://github.com/lb2002/openstitch/r
 * 🪟 **Windows (64 bits, archivo único):** [`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Windows-x64.exe)
 * 🍏 **macOS (Apple Silicon M1–M4):** [`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)
 * 🍎 **macOS (Intel x64):** [`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip)
+* 🐧 **Linux (64 bits):** **[`OpenStitch-Studio-Linux-x64.tar.gz`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Linux-x64.tar.gz)** *(descomprime y ejecuta `OpenStitch-Studio`)*
 
 ### Opción B: desde el código fuente
 Requiere **Python 3.10+**.

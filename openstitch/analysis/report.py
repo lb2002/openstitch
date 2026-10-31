@@ -14,6 +14,7 @@ from .stitches import Trace
 
 _PENALTY = {"error": 22.0, "warning": 7.0, "info": 1.0}
 _ORDER = {"error": 0, "warning": 1, "info": 2}
+SMALL_TEXT_MM = 4.5
 PUCKER_MM = 0.7         # so weit zieht sich der Stoff zusammen, bevor man Wellen sieht
 
 
@@ -59,6 +60,17 @@ def _hoop_findings(design: Design, t: Trace) -> list[dict]:
     return []
 
 
+def _small_text_findings(design: Design) -> list[dict]:
+    """Umriss-Schriften laufen unter 4.5 mm zu; die Einstrich-Schrift ist genau dafür gemacht."""
+    out = []
+    for o in design.objects:
+        if o.visible and o.kind == "text" and o.height < SMALL_TEXT_MM and not o.is_micro:
+            x0, y0, x1, y1 = o.bounds()
+            out.append({"code": "small_text", "severity": "warning", "object": o.name or o.text,
+                        "mm": float(o.height), "where": [((x0 + x1) / 2, (y0 + y1) / 2)]})
+    return out
+
+
 def simulate_stitchout(design: Design | None, plan: StitchPlan, fabric: Fabric | None = None,
                        needles: int | None = None, physics: bool = True) -> Report:
     """Virtueller Probestick. `design` darf None sein (dann nur stichbasierte Prüfungen).
@@ -78,6 +90,7 @@ def simulate_stitchout(design: Design | None, plan: StitchPlan, fabric: Fabric |
                      "peak_layers": peak}
     if design is not None:
         raw += _hoop_findings(design, t)
+        raw += _small_text_findings(design)
         cov, per_obj = check_coverage(design, t)
         raw += cov
         metrics["coverage"] = per_obj

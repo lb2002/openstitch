@@ -16,6 +16,8 @@
 
 ![OpenStitch Studio — Dark Studio Interface](./assets/screenshot_studio.png)
 
+<table><tr><td><img src="./assets/screenshot_start.png" alt="Start page"></td><td><img src="./assets/screenshot_check.png" alt="Design check with fabric preview"></td></tr></table>
+
 <details>
 <summary><b>🔍 Preview: interactive in-app studio tour (spotlight & coach marks)</b></summary>
 <br>
@@ -35,8 +37,8 @@
   * thin lines → **triple / bean run**
   * lettering & columns → **auto satin** with smoothly rotating stitch angle, short-stitching on tight inner curves, split satin for wide columns and automatic underlay
   * large areas → **tatami fill** or curved **contour fill** with boustrophedon region splitting, hidden travel routing along the outline, edge/lattice underlay and directional pull compensation
-* **Colour trap vs. smart knockdown + 0.7 mm overlap lip:** avoids bullet-proof stacking while eliminating fabric gaps between adjacent colours.
-* **Fabric presets:** standard, piqué/polo/knit, terry/towel, caps, lightweight.
+* **Hidden stitches are skipped:** fills do not stitch under objects that fully cover them, while a small overlap keeps gaps from opening.
+* **Real fabric choice:** cotton, denim, cap, piqué, T-shirt, fleece, towel, leather, silk. It sets density and pull compensation, and tells you which stabilizer and needle to use.
 * **Drag & drop:** drop images (`.png`, `.jpg`, `.webp`), `.svg` vectors or embroidery files straight onto the window.
 
 ### 2. 🎨 Manual digitizing, node editor & pro tools
@@ -51,14 +53,15 @@
   ![OpenStitch Micro vs. TrueType at 2.5 and 3 mm](./assets/micro_font_comparison.png)
 * **SVG import** (transforms, arcs, styles, `<use>`, fill rules) & **TTF/OTF lettering** (arc text, automatic satin/tatami choice).
 
-### 3. 🩺 Density guard, heatmap & quality doctor (`F7`)
-* **Anti-thread-break filter** prevents needle collisions, bird-nesting and fabric holes.
-* **Live stitch-density heatmap** (green / yellow / red).
-* **Quality doctor:** checks hoop clearance, needle count, micro-stitches and trims before export.
-* **Binary verification on export:** every exported file is re-read by an independent parser and checked for size and geometry.
+### 3. 🧪 Virtual stitch-out (`F7`)
+* **Check design:** a score out of 100, findings in plain language, a **Show** button that jumps to the spot and a **Fix** button where one click solves it.
+* **Fabric pull simulation:** see how thread tension pulls your chosen fabric in, and where outline and fill may no longer meet. It is a model built on rules of thumb, not a replacement for a test stitch-out.
+* **Machine rules:** stitches too short or too long, loose floats, missing lock stitches, needle pile-ups, too many thread layers, hoop collisions.
+* **Export check:** files are read back with an independent parser and compared stitch by stitch.
+* **Command line:** `python -m openstitch.analysis design.dst --fabric jersey --formats`
 
 ### 4. 🌍 Languages & real thread catalogs
-* **UI languages:** 🇬🇧 English · 🇩🇪 Deutsch · 🇫🇷 Français · 🇪🇸 Español — switch live at the top of the window.
+* **UI languages:** 🇬🇧 English · 🇩🇪 Deutsch · 🇫🇷 Français · 🇪🇸 Español · 🇮🇹 Italiano · 🇵🇹 Português · 🇳🇱 Nederlands · 🇵🇱 Polski · 🇹🇷 Türkçe — the app starts in your system language; switch any time at the bottom right.
 * **Thread catalogs with official colour numbers:** Madeira Polyneon No. 40, Isacord Polyester No. 40, Gunold POLY 40, Brother Embroidery and a universal palette; custom CSV palettes can be loaded too.
 
 ### 5. 🏭 Manufacturer-neutral & all major machine formats
@@ -68,6 +71,19 @@
 
 ---
 
+## 🔬 How it is tested
+
+Nothing here has been proven on every real machine yet, so the project tests as much as it can without one:
+
+* **Virtual stitch-out:** machine rules, fabric pull and coverage on a set of 34 test designs (`python -m openstitch.analysis --corpus --formats`).
+* **Export round trip:** every machine format is written, re-read by an independent parser and compared stitch by stitch.
+* **Random shape tests:** thousands of odd shapes must never crash the engine or put stitches outside the shape.
+* **Damaged files:** broken embroidery, project, SVG and floppy files must fail cleanly.
+* **Monkey test:** thousands of random clicks and keys on the real window.
+* **Every setting must have an effect:** this found that satin density did nothing above about 0.4 mm.
+
+Test stitch-outs on real machines are still the most useful contribution you can make.
+
 ## 🚀 Quickstart & Installation
 
 ### Option A: 1-click download (no Python required)
@@ -75,6 +91,7 @@ Get the ready-made app from the **[GitHub release page (latest)](https://github.
 * 🪟 **Windows (64-bit, single file):** [`OpenStitch-Studio-Windows-x64.exe`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Windows-x64.exe) *(download & double-click, nothing to unpack)*
 * 🍏 **macOS (Apple Silicon M1 / M2 / M3 / M4):** [`OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip)
 * 🍎 **macOS (Intel x64):** [`OpenStitch-Studio-macOS-Intel-x64.zip`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip)
+* 🐧 **Linux (64-bit):** **[`OpenStitch-Studio-Linux-x64.tar.gz`](https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Linux-x64.tar.gz)** *(unpack, then run `OpenStitch-Studio`)*
 
 ### Option B: run from source (Windows, macOS & Linux)
 Requires **Python 3.10+**.

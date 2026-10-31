@@ -5,9 +5,7 @@ import math
 from PySide6.QtCore import QPointF, QRectF, QSettings, Qt
 from PySide6.QtGui import (
     QColor,
-    QFont,
     QIcon,
-    QLinearGradient,
     QPainter,
     QPainterPath,
     QPen,
@@ -16,7 +14,6 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QCheckBox,
-    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -24,10 +21,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import LineString, Polygon
 
-from ..core.design import Design, FillObject, HOOPS, RunObject, SatinObject
+from ..core.design import Design, FillObject, HOOPS, SatinObject
 from ..core.stitchplan import Thread
+from ..i18n import tr
 from ..text import TextObject
 from . import theme
 
@@ -343,7 +341,7 @@ def create_openstitch_logo_design() -> Design:
     d.objects.append(
         FillObject(
             Thread.from_hex("#162847", "Space Indigo", "075", "OpenStitch"),
-            name="Wappen-Schild (Ziegel)",
+            name="Shield",
             geom=hex_poly.buffer(-2.6),
             angle=30.0,
             spacing=0.44,
@@ -356,8 +354,8 @@ def create_openstitch_logo_design() -> Design:
     outer_ring = hex_poly.difference(hex_poly.buffer(-3.2))
     d.objects.append(
         SatinObject(
-            Thread.from_hex("#4285F4", "Studio Blau", "035", "OpenStitch"),
-            name="Wappen-Satinrand",
+            Thread.from_hex("#4285F4", "Studio Blue", "035", "OpenStitch"),
+            name="Shield border",
             geom=outer_ring,
             spacing=0.38,
             pull_comp=0.18,
@@ -374,7 +372,7 @@ def create_openstitch_logo_design() -> Design:
     d.objects.append(
         SatinObject(
             Thread.from_hex("#FBBC04", "Solar Gold", "023", "OpenStitch"),
-            name="Goldene Fadenwelle",
+            name="Golden thread",
             geom=wave_ribbon,
             spacing=0.36,
             pull_comp=0.18,
@@ -389,8 +387,8 @@ def create_openstitch_logo_design() -> Design:
     arc_ribbon = LineString(arc_pts).buffer(1.45, cap_style=1, join_style=1)
     d.objects.append(
         SatinObject(
-            Thread.from_hex("#EA4335", "Korallenrot", "042", "OpenStitch"),
-            name="Korallen-Fadenschlaufe",
+            Thread.from_hex("#EA4335", "Coral Red", "042", "OpenStitch"),
+            name="Coral loop",
             geom=arc_ribbon,
             spacing=0.36,
             pull_comp=0.16,
@@ -402,8 +400,8 @@ def create_openstitch_logo_design() -> Design:
     needle_geom = needle_line.buffer(1.8, cap_style=1)
     d.objects.append(
         SatinObject(
-            Thread.from_hex("#34A853", "Smaragd", "058", "OpenStitch"),
-            name="Präzisions-Nadel",
+            Thread.from_hex("#34A853", "Emerald", "058", "OpenStitch"),
+            name="Needle",
             geom=needle_geom,
             spacing=0.36,
             pull_comp=0.16,
@@ -413,8 +411,8 @@ def create_openstitch_logo_design() -> Design:
     # 6. Markenschriftzug „OPENSTITCH“ in Reinweiss (#FFFFFF)
     d.objects.append(
         TextObject(
-            Thread.from_hex("#FFFFFF", "Reinweiss", "001", "OpenStitch"),
-            name='Schriftzug „OPENSTITCH“',
+            Thread.from_hex("#FFFFFF", "Pure White", "001", "OpenStitch"),
+            name="Lettering",
             text="OPENSTITCH",
             height=5.6,
             letter_spacing=0.45,
@@ -426,397 +424,74 @@ def create_openstitch_logo_design() -> Design:
 
 
 # ===========================================================================
-# 3. Interaktiver Studio-Rundgang (Google-Material-3 Onboarding-Tour)
-# ===========================================================================
-class _TourHeroBanner(QWidget):
-    """Vektor-illustrierter Header für jeden Schritt des Studio-Rundgangs."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedHeight(145)
-        self.step_index = 0
-
-    def set_step(self, idx: int):
-        self.step_index = idx
-        self.update()
-
-    def paintEvent(self, _ev):
-        p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing, True)
-        w, h = float(self.width()), float(self.height())
-
-        # Edler Google-AI-Studio Verlaufshintergrund
-        grad = QLinearGradient(0, 0, w, h)
-        palettes = [
-            (QColor("#16233b"), QColor("#1f3763"), QColor("#4285F4")),
-            (QColor("#142b29"), QColor("#1b433d"), QColor("#34A853")),
-            (QColor("#2c2214"), QColor("#463316"), QColor("#FBBC04")),
-            (QColor("#261a38"), QColor("#3c255c"), QColor("#c58af9")),
-            (QColor("#2d1a1e"), QColor("#4a2229"), QColor("#EA4335")),
-        ]
-        c0, c1, accent = palettes[self.step_index % len(palettes)]
-        grad.setColorAt(0.0, c0)
-        grad.setColorAt(1.0, c1)
-
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(0, 0, w, h), 12, 12)
-        p.fillPath(path, grad)
-
-        # Dekoratives Millimeter-Grid im Hintergrund
-        p.setPen(QPen(QColor(255, 255, 255, 16), 1))
-        for x in range(24, int(w), 24):
-            p.drawLine(x, 0, x, int(h))
-        for y in range(24, int(h), 24):
-            p.drawLine(0, y, int(w), y)
-
-        # Schritt-spezifische Vektor-Grafik in der Mitte
-        cx, cy = w * 0.5, h * 0.52
-        p.setPen(QPen(accent, 2.4, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        p.setBrush(QColor(accent.red(), accent.green(), accent.blue(), 42))
-
-        if self.step_index == 0:
-            # OpenStitch Hexagon + Fadenwelle
-            pts = [
-                QPointF(cx + 42 * math.cos(math.radians(i * 60 - 30)),
-                        cy + 42 * math.sin(math.radians(i * 60 - 30)))
-                for i in range(6)
-            ]
-            p.drawPolygon(QPolygonF(pts))
-            p.setPen(QPen(QColor("#FBBC04"), 3.0, Qt.SolidLine, Qt.RoundCap))
-            wave = QPainterPath()
-            wave.moveTo(cx - 28, cy + 4)
-            wave.cubicTo(QPointF(cx - 10, cy - 22), QPointF(cx + 10, cy + 28), QPointF(cx + 28, cy - 4))
-            p.drawPath(wave)
-        elif self.step_index == 1:
-            # Stickrahmen + Cap Center-Out Pfeile
-            p.drawEllipse(QPointF(cx, cy), 42, 42)
-            p.setPen(QPen(QColor("#81c995"), 1.6, Qt.DashLine))
-            p.drawEllipse(QPointF(cx, cy), 34, 34)
-            p.setPen(QPen(QColor("#ffffff"), 2.0))
-            p.drawLine(QPointF(cx, cy + 16), QPointF(cx, cy - 18))
-            p.drawLine(QPointF(cx, cy + 4), QPointF(cx - 20, cy + 4))
-            p.drawLine(QPointF(cx, cy + 4), QPointF(cx + 20, cy + 4))
-        elif self.step_index == 2:
-            # Bild -> Funken -> Stickerei
-            p.drawRoundedRect(QRectF(cx - 65, cy - 28, 52, 56), 6, 6)
-            p.setPen(QPen(QColor("#FBBC04"), 2.4))
-            p.drawLine(QPointF(cx - 6, cy), QPointF(cx + 8, cy))
-            p.drawRoundedRect(QRectF(cx + 16, cy - 28, 52, 56), 6, 6)
-            for ry in range(-18, 22, 8):
-                p.drawLine(QPointF(cx + 24, cy + ry), QPointF(cx + 60, cy + ry))
-        elif self.step_index == 3:
-            # Bezier-Knoten & Stichwinkel-Achse
-            p.drawRoundedRect(QRectF(cx - 48, cy - 30, 96, 60), 10, 10)
-            p.setPen(QPen(QColor("#FBBC04"), 2.2, Qt.DashLine))
-            p.drawLine(QPointF(cx - 32, cy + 16), QPointF(cx + 32, cy - 16))
-            p.setBrush(QColor("#ffffff"))
-            p.drawEllipse(QPointF(cx - 32, cy + 16), 5, 5)
-            p.drawEllipse(QPointF(cx + 32, cy - 16), 5, 5)
-        else:
-            # Qualitäts-Doktor Schild + Haken
-            p.drawEllipse(QPointF(cx, cy), 40, 40)
-            p.setPen(QPen(QColor("#81c995"), 3.2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-            p.drawLine(QPointF(cx - 16, cy + 2), QPointF(cx - 4, cy + 15))
-            p.drawLine(QPointF(cx - 4, cy + 15), QPointF(cx + 18, cy - 12))
-
-        p.end()
-
-
-class OnboardingTourDialog(QDialog):
-    """Interaktiver 5-Schritte-Rundgang im Google-Studio-Look."""
-
-    STEPS = [
-        {
-            "badge": "WILLKOMMEN · ÜBERBLICK",
-            "title": "Willkommen bei OpenStitch Studio",
-            "body": (
-                "<b>OpenStitch</b> ist deine universelle, herstellerneutrale Open-Source-Suite für "
-                "professionelles Digitalisieren und Sticken.<br><br>"
-                "• <b>Universell kompatibel:</b> Unterstützt <b>Tajima (.DST)</b>, <b>Brother (.PES)</b>, "
-                "<b>Melco/Bernina (.EXP)</b>, <b>Janome (.JEF)</b>, <b>Pfaff/Husqvarna (.VP3)</b> & <b>Barudan (.U01)</b>.<br>"
-                "• <b>Starter-Design auf der Leinwand:</b> Wir haben für dich direkt das offizielle "
-                "<b>OpenStitch-Wappen</b> geladen – klicke einzelne Elemente an, um sie live anzupassen!"
-            ),
-            "action_label": None,
-            "action_key": None,
-        },
-        {
-            "badge": "SCHRITT 1 VON 4 · OBEN RECHTS",
-            "title": "Maschine & Intelligenter Stickrahmen",
-            "body": (
-                "Oben rechts in der Studio-Leiste wählst du deine <b>Maschine</b> und deinen <b>Stickrahmen</b>:<br><br>"
-                "• <b>Automatische Rahmen-Physik:</b> Grosse Rahmen (18–30 cm) federn in der Mitte stärker "
-                "(<i>Trampolin-Effekt</i>). OpenStitch verstärkt dort automatisch die Unterlage und Zugkompensation.<br>"
-                "• <b>Kappen-Modus (Cap):</b> Sortiert Objekte automatisch <i>Center-Out & Bottom-Up</i> "
-                "(vom Schirm nach oben und von der Mittelnaht nach aussen), damit sich auf Caps keine Falten bilden."
-            ),
-            "action_label": "⛶ Design jetzt optimal in Rahmen einpassen (Auto-Fit)",
-            "action_key": "fit",
-        },
-        {
-            "badge": "SCHRITT 2 VON 4 · OBEN MITTE",
-            "title": "In Sekunden vom Bild oder Vektor zur Stickdatei",
-            "body": (
-                "Drei leistungsstarke Assistenten nehmen dir die Vorarbeit ab:<br><br>"
-                "• <b>✨ Auto-Digitizer (Ctrl+D):</b> Entfernt den Bildhintergrund automatisch, trennt Farben per "
-                "CIE-Lab und erzeugt saubere Tatami- & Satin-Objekte mit 0.7 mm Überlappung gegen Stoffblitzer.<br>"
-                "• <b>🖼 PhotoStitch (Ctrl+P):</b> Verwandelt Porträtfotos in monochrome oder 4-farbige CMYK-Wellenstickerei.<br>"
-                "• <b>✒ SVG & 🔤 Schrift (Ctrl+T):</b> Importiert Vektor-Logos oder setzt TrueType-Schriften auf Bogen."
-            ),
-            "action_label": "✨ Auto-Digitizer jetzt öffnen …",
-            "action_key": "auto_digitize",
-        },
-        {
-            "badge": "SCHRITT 3 VON 4 · LINKS & RECHTS",
-            "title": "Profi-Werkzeuge, Knoten-Editor & Live-Inspektor",
-            "body": (
-                "Du hast jederzeit die volle manuelle Kontrolle:<br><br>"
-                "• <b>Linke Werkzeugleiste:</b> Zeichne eigene <b>Tatami-Flächen (F)</b>, <b>Satin-Säulen (S)</b> oder "
-                "<b>Steppstiche (R)</b>. Mit <b>Knoten (N)</b> ziehst du Konturpunkte und die gelbe Stichwinkel-Achse live.<br>"
-                "• <b>Rechter Objekt-Inspektor:</b> Ändere Dichte, Muster (z. B. <i>Kontur-Fill</i>), Zugkompensation oder "
-                "aktiviere den <b>3D-Puff-Schaumstoff-Modus</b> für erhabene 3D-Caps – alles berechnet sich sofort neu!"
-            ),
-            "action_label": "❖ Knoten- & Stichwinkel-Editor (Taste N) aktivieren",
-            "action_key": "nodes_tool",
-        },
-        {
-            "badge": "SCHRITT 4 VON 4 · PRÜFUNG & EXPORT",
-            "title": "Qualitäts-Doktor (F7), Simulator & Export",
-            "body": (
-                "Bevor die Maschine startet, sorgt OpenStitch für maximale Produktionssicherheit:<br><br>"
-                "• <b>🩺 Qualitäts-Doktor (F7):</b> Prüft dein Design auf Fadenriss-Risiken, Nadelbruch-Stellen "
-                "(&gt;18 Stiche/mm²), Rahmen-Überschreitung und Nadelanzahl.<br>"
-                "• <b>▶ Näh-Simulator (Unten):</b> Spiele den Stickverlauf Stich für Stich vor.<br>"
-                "• <b>💾 Export (Ctrl+E) & 📄 PDF:</b> Exportiere für deine Maschine + drucke das A4-Produktionsblatt."
-            ),
-            "action_label": "🩺 Qualitäts-Doktor (F7) für das aktuelle Logo ausführen",
-            "action_key": "doctor",
-        },
-    ]
-
-    def __init__(self, main_win, parent=None):
-        super().__init__(parent or main_win)
-        self.main_win = main_win
-        self.idx = 0
-        self.setWindowTitle("OpenStitch Studio  —  Interaktiver Rundgang")
-        self.setMinimumWidth(560)
-        self.setMaximumWidth(600)
-        self.setModal(False)
-        self.setWindowFlags(Qt.Dialog | Qt.WindowCloseButtonHint | Qt.WindowTitleHint)
-
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(20, 20, 20, 18)
-        lay.setSpacing(14)
-
-        self.hero = _TourHeroBanner(self)
-        lay.addWidget(self.hero)
-
-        self.lbl_badge = QLabel()
-        self.lbl_badge.setStyleSheet(
-            "color: #8ab4f8; font-size: 8.5pt; font-weight: 700; letter-spacing: 1.1px;"
-        )
-        lay.addWidget(self.lbl_badge)
-
-        self.lbl_title = QLabel()
-        f = QFont("Segoe UI", 14, QFont.Bold)
-        self.lbl_title.setFont(f)
-        self.lbl_title.setStyleSheet("color: #f8f9fa;")
-        lay.addWidget(self.lbl_title)
-
-        card = QFrame()
-        card.setObjectName("card")
-        cv = QVBoxLayout(card)
-        cv.setContentsMargins(14, 12, 14, 12)
-        self.lbl_body = QLabel()
-        self.lbl_body.setWordWrap(True)
-        self.lbl_body.setStyleSheet("color: #d2d8e6; font-size: 10pt; line-height: 1.45;")
-        cv.addWidget(self.lbl_body)
-
-        self.btn_try = QPushButton()
-        self.btn_try.setCursor(Qt.PointingHandCursor)
-        self.btn_try.setStyleSheet(
-            "QPushButton { background-color: rgba(138, 180, 248, 0.14); border: 1px solid #4c8df6; "
-            "color: #8ab4f8; font-weight: 600; padding: 7px 12px; border-radius: 7px; margin-top: 6px; }"
-            "QPushButton:hover { background-color: rgba(138, 180, 248, 0.26); color: #ffffff; }"
-        )
-        self.btn_try.clicked.connect(self._on_try_action)
-        cv.addWidget(self.btn_try)
-        lay.addWidget(card)
-
-        # Fusszeile mit Schritt-Punkten, Checkbox & Navigation
-        foot = QHBoxLayout()
-        self.cb_startup = QCheckBox("Beim Start zeigen")
-        settings = QSettings("OpenStitch", "OpenStitchStudio")
-        self.cb_startup.setChecked(settings.value("show_tour_on_startup", True, type=bool))
-        self.cb_startup.toggled.connect(
-            lambda v: QSettings("OpenStitch", "OpenStitchStudio").setValue("show_tour_on_startup", bool(v))
-        )
-        foot.addWidget(self.cb_startup)
-
-        foot.addStretch(1)
-        self.lbl_dots = QLabel()
-        self.lbl_dots.setStyleSheet("color: #8ab4f8; font-size: 11pt; letter-spacing: 3px;")
-        foot.addWidget(self.lbl_dots)
-        foot.addStretch(1)
-
-        self.btn_prev = QPushButton("← Zurück")
-        self.btn_prev.clicked.connect(self._prev)
-        foot.addWidget(self.btn_prev)
-
-        self.btn_next = QPushButton("Weiter →")
-        self.btn_next.setObjectName("primaryBtn")
-        self.btn_next.clicked.connect(self._next)
-        foot.addWidget(self.btn_next)
-
-        lay.addLayout(foot)
-        self._refresh()
-
-    def _refresh(self):
-        st = self.STEPS[self.idx]
-        self.hero.set_step(self.idx)
-        self.lbl_badge.setText(st["badge"])
-        self.lbl_title.setText(st["title"])
-        self.lbl_body.setText(st["body"])
-
-        if st["action_label"]:
-            self.btn_try.setText(st["action_label"])
-            self.btn_try.show()
-        else:
-            self.btn_try.hide()
-
-        dots = ["●" if i == self.idx else "○" for i in range(len(self.STEPS))]
-        self.lbl_dots.setText(" ".join(dots))
-
-        self.btn_prev.setEnabled(self.idx > 0)
-        if self.idx == len(self.STEPS) - 1:
-            self.btn_next.setText("Loslegen ✓")
-        else:
-            self.btn_next.setText("Weiter →")
-
-    def _prev(self):
-        if self.idx > 0:
-            self.idx -= 1
-            self._refresh()
-
-    def _next(self):
-        if self.idx < len(self.STEPS) - 1:
-            self.idx += 1
-            self._refresh()
-        else:
-            self.accept()
-
-    def _on_try_action(self):
-        key = self.STEPS[self.idx].get("action_key")
-        if not self.main_win:
-            return
-        if key == "fit":
-            self.main_win.action_fit_to_hoop()
-        elif key == "auto_digitize":
-            self.hide()
-            self.main_win.action_auto_digitize()
-        elif key == "nodes_tool":
-            self.main_win._set_tool("edit_nodes")
-        elif key == "doctor":
-            self.main_win.action_quality_doctor()
-
-
-# ===========================================================================
-# 4. In-App Spotlight & Coach-Mark Popups (Direkt im Hauptfenster!)
+# 3. In-App Spotlight & Coach-Mark Popups (Direkt im Hauptfenster!)
 # ===========================================================================
 class InAppTourOverlay(QWidget):
     """Interaktives Spotlight-Overlay mit schwebenden Coach-Mark-Popups direkt über den UI-Bereichen."""
 
+    # Enthält i18n-Schlüssel: Übersetzt wird erst in _refresh, damit der Rundgang der Sprache folgt.
     STEPS = [
         {
             "target": "canvas_center",
             "place": "right",
-            "badge": "WILLKOMMEN · 1 / 7",
-            "title": "3D-Stickleinwand & OpenStitch-Wappen",
-            "body": (
-                "Hier in der Mitte siehst du unser offizielles <b>OpenStitch-Wappen</b> im Stickrahmen.<br><br>"
-                "• <b>Klicken & Ziehen:</b> Objekte direkt auswählen, verschieben oder am Eckgriff skalieren.<br>"
-                "• <b>Mausrad:</b> Stufenlos bis auf einzelne Einstiche hineinzoomen."
-            ),
-            "action_label": "🎨 Stofffarbe im Rahmen testen (Dunkel / Sand / Hell)",
+            "badge": "tour_app_1_badge",
+            "title": "tour_app_1_title",
+            "body": "tour_app_1_body",
+            "action_label": "tour_app_1_action",
             "action_key": "cycle_fabric",
         },
         {
             "target": "ctx_bar",
             "place": "below",
-            "badge": "KONTEXTLEISTE · 2 / 7",
-            "title": "Maschine, Stickrahmen & Rahmen-Physik",
-            "body": (
-                "Direkt über der Leinwand wählst du deine <b>Maschine</b> (Universal, Tajima, Brother, Barudan, Melco …) "
-                "und den <b>Stickrahmen</b>:<br><br>"
-                "• <b>Intelligente Strategie:</b> Je nach Rahmengrösse (z. B. <i>Anti-Trampolin</i> bei grossen Rahmen "
-                "oder <i>Center-Out & Bottom-Up</i> bei Caps) passt OpenStitch Unterlage & Zugkompensation automatisch an!"
-            ),
-            "action_label": "⛶ Design optimal in den Rahmen einpassen (Auto-Fit)",
+            "badge": "tour_app_2_badge",
+            "title": "tour_app_2_title",
+            "body": "tour_app_2_body",
+            "action_label": "tour_app_2_action",
             "action_key": "fit",
         },
         {
             "target": "top_toolbar",
             "place": "below",
-            "badge": "STUDIO-LEISTE · 3 / 7",
-            "title": "Auto-Digitizer, PhotoStitch, SVG & Doktor",
-            "body": (
-                "Oben findest du alle Kreativ-Assistenten und Prüfwerkzeuge:<br><br>"
-                "• <b>Auto-Digitizer (Ctrl+D):</b> Bild hochladen → automatische Hintergrund-Freistellung & Stickflächen.<br>"
-                "• <b>PhotoStitch (Ctrl+P):</b> Porträtfotos als Wellen-/CMYK-Stickerei.<br>"
-                "• <b>Doktor (F7):</b> Prüft dein Design vorab auf Fadenriss- & Nadelbruch-Risiken."
-            ),
-            "action_label": "✨ Auto-Digitizer direkt öffnen …",
+            "badge": "tour_app_3_badge",
+            "title": "tour_app_3_title",
+            "body": "tour_app_3_body",
+            "action_label": "tour_app_3_action",
             "action_key": "auto_digitize",
         },
         {
             "target": "left_rail",
             "place": "right",
-            "badge": "WERKZEUGE · 4 / 7",
-            "title": "Manuelles Zeichnen & Stichwinkel-Knoten (N)",
-            "body": (
-                "In der vertikalen Werkzeugleiste links wechselst du den Bearbeitungsmodus:<br><br>"
-                "• <b>Tatami (F) / Satin (S) / Stepp (R):</b> Eigene Formen frei auf der Leinwand zeichnen.<br>"
-                "• <b>Knoten (N):</b> Konturpunkte einzeln verschieben und an der <b>gelben Achse</b> den Stichwinkel live drehen!"
-            ),
-            "action_label": "❖ Knoten- && Stichwinkel-Editor (N) jetzt einschalten",
+            "badge": "tour_app_4_badge",
+            "title": "tour_app_4_title",
+            "body": "tour_app_4_body",
+            "action_label": "tour_app_4_action",
             "action_key": "nodes_tool",
         },
         {
             "target": "left_dock",
             "place": "right",
-            "badge": "GARNFARBEN · 5 / 7",
-            "title": "Farbpalette & Nadel-Sequenz",
-            "body": (
-                "Links wählst du mit einem Klick aus <b>49 Industriepaletten-Farben</b> oder einem eigenen RGB-Ton.<br><br>"
-                "• Darunter siehst du live die <b>Nadel- & Farbwechsel-Sequenz</b> deiner Maschine inklusive Stichanzahl pro Farbe."
-            ),
+            "badge": "tour_app_5_badge",
+            "title": "tour_app_5_title",
+            "body": "tour_app_5_body",
             "action_label": None,
             "action_key": None,
         },
         {
             "target": "right_dock",
             "place": "left",
-            "badge": "INSPEKTOR · 6 / 7",
-            "title": "Ebenen & Live-Objekt-Parameter",
-            "body": (
-                "Rechts steuerst du die <b>Stickreihenfolge</b> und stellst im <b>Objekt-Inspektor</b> "
-                "Reihenabstand, Muster (z. B. <i>Kontur-Fill</i>), Zugkompensation oder <b>3D-Puff-Schaumstoff</b> ein.<br><br>"
-                "• Jede Änderung berechnet die Stiche <b>sofort live</b> auf der Leinwand neu!"
-            ),
+            "badge": "tour_app_6_badge",
+            "title": "tour_app_6_title",
+            "body": "tour_app_6_body",
             "action_label": None,
             "action_key": None,
         },
         {
             "target": "bottom_bar",
             "place": "above",
-            "badge": "SIMULATOR & PRODUKTION · 7 / 7",
-            "title": "Stich-Simulator & Echtzeit-Kinematik",
-            "body": (
-                "Unten spielst du den kompletten Nähvorgang <b>Stich für Stich</b> im Simulator vor.<br><br>"
-                "• In der Statusleiste ganz unten siehst du live die <b>effektive Maschinengeschwindigkeit (SPM)</b>, "
-                "Spitzendichte (St./mm²), Trims und die reale Produktionslaufzeit!"
-            ),
-            "action_label": "▶ Näh-Simulation unten starten / stoppen",
+            "badge": "tour_app_7_badge",
+            "title": "tour_app_7_title",
+            "body": "tour_app_7_body",
+            "action_label": "tour_app_7_action",
             "action_key": "play_sim",
         },
     ]
@@ -851,15 +526,14 @@ class InAppTourOverlay(QWidget):
         )
         top_row.addWidget(self.lbl_badge)
         top_row.addStretch(1)
-        btn_close = QPushButton("✕")
-        btn_close.setFixedSize(24, 24)
-        btn_close.setToolTip("Rundgang schliessen (Esc)")
-        btn_close.setStyleSheet(
+        self.btn_close = QPushButton("✕")
+        self.btn_close.setFixedSize(24, 24)
+        self.btn_close.setStyleSheet(
             "QPushButton { background: transparent; border: none; color: #9aa4b8; font-size: 10pt; padding: 0; }"
             "QPushButton:hover { color: #ffffff; background-color: #343b4a; border-radius: 12px; }"
         )
-        btn_close.clicked.connect(self.close_tour)
-        top_row.addWidget(btn_close)
+        self.btn_close.clicked.connect(self.close_tour)
+        top_row.addWidget(self.btn_close)
         lay.addLayout(top_row)
 
         self.lbl_title = QLabel()
@@ -883,7 +557,7 @@ class InAppTourOverlay(QWidget):
         lay.addWidget(self.btn_try)
 
         foot = QHBoxLayout()
-        self.cb_startup = QCheckBox("Beim Start")
+        self.cb_startup = QCheckBox()
         self.cb_startup.setStyleSheet("color: #9aa4b8; font-size: 8.5pt;")
         settings = QSettings("OpenStitch", "OpenStitchStudio")
         self.cb_startup.setChecked(settings.value("show_tour_on_startup", True, type=bool))
@@ -900,15 +574,20 @@ class InAppTourOverlay(QWidget):
 
         self.btn_prev = QPushButton("←")
         self.btn_prev.setFixedWidth(34)
-        self.btn_prev.setToolTip("Vorheriger Schritt")
         self.btn_prev.clicked.connect(self._prev)
         foot.addWidget(self.btn_prev)
 
-        self.btn_next = QPushButton("Weiter →")
+        self.btn_next = QPushButton()
         self.btn_next.setObjectName("primaryBtn")
         self.btn_next.clicked.connect(self._next)
         foot.addWidget(self.btn_next)
         lay.addLayout(foot)
+
+        main_win.cmb_lang.currentIndexChanged.connect(self._on_language_changed)
+
+    def _on_language_changed(self):
+        if self.isVisible():
+            self._refresh()
 
     def start_tour(self):
         self.idx = 0
@@ -954,12 +633,15 @@ class InAppTourOverlay(QWidget):
     def _refresh(self):
         self.setGeometry(self.main_win.rect())
         st = self.STEPS[self.idx]
-        self.lbl_badge.setText(st["badge"])
-        self.lbl_title.setText(st["title"])
-        self.lbl_body.setText(st["body"])
+        self.btn_close.setToolTip(tr("tour_close_tip"))
+        self.cb_startup.setText(tr("tour_on_start"))
+        self.btn_prev.setToolTip(tr("tour_prev_tip"))
+        self.lbl_badge.setText(tr(st["badge"]))
+        self.lbl_title.setText(tr(st["title"]))
+        self.lbl_body.setText(tr(st["body"]))
 
         if st["action_label"]:
-            self.btn_try.setText(st["action_label"])
+            self.btn_try.setText(tr(st["action_label"]))
             self.btn_try.show()
         else:
             self.btn_try.hide()
@@ -968,7 +650,7 @@ class InAppTourOverlay(QWidget):
         self.lbl_dots.setText(" ".join(dots))
 
         self.btn_prev.setEnabled(self.idx > 0)
-        self.btn_next.setText("Fertig ✓" if self.idx == len(self.STEPS) - 1 else "Weiter →")
+        self.btn_next.setText(tr("tour_done") if self.idx == len(self.STEPS) - 1 else tr("tour_next"))
 
         self.card.adjustSize()
         spot = self._target_rect()

@@ -74,6 +74,7 @@ def main():
     app.processEvents()
 
     # 2. Erst jetzt die Hauptmodule importieren
+    from .ui.crash import install as install_crash_handler
     from .ui.main_window import MainWindow
 
     splash.showMessage(
@@ -84,6 +85,7 @@ def main():
     app.processEvents()
 
     win = MainWindow(defer_starter=True)
+    install_crash_handler(win)
     win.show()
     app.processEvents()
 

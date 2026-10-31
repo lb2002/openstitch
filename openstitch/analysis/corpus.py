@@ -4,7 +4,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-from shapely import affinity
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 
 from ..auto.digitize import AutoParams, auto_digitize

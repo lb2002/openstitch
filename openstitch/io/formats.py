@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import os
+import unicodedata
 
 import pyembroidery as pe
 
 from ..core.design import Design, StitchesObject
 from ..core.stitchplan import Cmd, StitchPlan, Thread
 from .exp import write_exp
+
+_SPECIAL = str.maketrans({"ß": "ss", "ø": "o", "Ø": "O", "ł": "l", "Ł": "L", "ı": "i", "æ": "ae", "œ": "oe"})
 
 READ_EXT = ["exp", "dst", "pes", "pec", "jef", "vp3", "xxx", "hus", "vip", "sew", "u01", "pcs",
             "dsb", "dsz", "tbf", "shv", "10o", "100", "ksm", "max", "stx", "phb", "phc", "gt", "inb",
@@ -30,6 +33,15 @@ FORMAT_NAMES = {
 }
 
 
+def _ascii(text: str) -> str:
+    """Garnnamen für Stickdateien: nur einfache Zeichen.
+
+    Maschinen zeigen ohnehin keine Umlaute. Vor allem aber schreibt pyembroidery in VP3 die Länge
+    in Zeichen statt Bytes: Schon ein „ü“ verschiebt den Rest und die Datei ist unlesbar."""
+    text = text.translate(_SPECIAL)
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+
 def plan_to_pattern(plan: StitchPlan) -> pe.EmbPattern:
     p = pe.EmbPattern()
     x0, y0, x1, y1 = plan.bounds()
@@ -37,9 +49,9 @@ def plan_to_pattern(plan: StitchPlan) -> pe.EmbPattern:
     for bi, block in enumerate(plan.blocks):
         t = pe.EmbThread()
         t.set_color(*block.thread.color)
-        t.description = block.thread.name
-        t.catalog_number = block.thread.code
-        t.brand = block.thread.brand
+        t.description = _ascii(block.thread.name)
+        t.catalog_number = _ascii(block.thread.code)
+        t.brand = _ascii(block.thread.brand)
         p.add_thread(t)
         if bi > 0:
             p.add_command(pe.COLOR_CHANGE)

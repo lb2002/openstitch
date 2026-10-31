@@ -6,7 +6,6 @@ import os
 from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtGui import QIcon, QImage, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QComboBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -21,7 +20,6 @@ from PySide6.QtWidgets import (
 
 from ..render import render_image
 from ..samples import SAMPLES
-from ..i18n import tr
 from .onboarding import studio_icon
 
 

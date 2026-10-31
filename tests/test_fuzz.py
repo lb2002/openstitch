@@ -24,7 +24,7 @@ from openstitch.engine.geom import polygons_of
 from openstitch.text import TextObject
 
 _app = QApplication.instance() or QApplication(sys.argv)
-RUNS = int(os.environ.get("OPENSTITCH_FUZZ_RUNS", "60"))
+RUNS = int(os.environ.get("OPENSTITCH_FUZZ_RUNS", "25"))
 RED = Thread((200, 30, 30), "r")
 
 coord = st.floats(min_value=-45, max_value=45, allow_nan=False)

@@ -166,14 +166,15 @@ def path_along_ring(ring, p: Pt, q: Pt) -> list[Pt]:
         if forward:
             if s1 < s0:
                 s1 += L
-            idx = [c for c in cum[1:-1]] + [c + L for c in cum[1:-1]]
+            # Auch der Startpunkt des Rings ist eine Ecke: Ohne ihn schneidet der Weg dort ab
+            idx = [c for c in cum[:-1]] + [c + L for c in cum[:-1]]
             for c in idx:
                 if s0 < c < s1:
                     pts.append(tuple(line.interpolate(c % L).coords[0]))
         else:
             if s1 > s0:
                 s1 -= L
-            idx = sorted([c for c in cum[1:-1]] + [c - L for c in cum[1:-1]], reverse=True)
+            idx = sorted([c for c in cum[:-1]] + [c - L for c in cum[:-1]], reverse=True)
             for c in idx:
                 if s1 < c < s0:
                     pts.append(tuple(line.interpolate(c % L).coords[0]))

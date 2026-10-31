@@ -46,3 +46,18 @@ Mit dem Einreichen eines Pull Requests oder Beitrags (Contribution) erklärst du
 1. Du bestätigst, dass du der Urheber deines Beitrags bist und das Recht hast, ihn einzureichen.
 2. Du räumst dem Projektgründer und Haupturheber **Linus Baumberger (`@lb2002`)** ein unwiderrufliches, weltweites, gebührenfreies, nicht-exklusives und unterlizenzierbares Recht ein, deinen Beitrag zusammen mit OpenStitch Studio sowohl unter der **GNU AGPL-3.0-or-later** als auch unter beliebigen anderen (einschließlich kommerziellen / proprietären Dual-Licensing-) Lizenzen zu nutzen, zu verändern und zu verbreiten.
 3. Du behältst selbstverständlich das Urheberrecht an deinem eigenen Beitrag.
+
+## Testing your change
+
+```bash
+pip install -e ".[dev]"
+pytest tests -q
+python -m openstitch.analysis --corpus --formats
+```
+
+The random tests get longer with `OPENSTITCH_FUZZ_RUNS`, `OPENSTITCH_MONKEY_STEPS`, `OPENSTITCH_MONKEY_SEEDS` and `OPENSTITCH_BADFILE_ROUNDS`. A long run happens every week in the Stress tests workflow.
+
+## Adding a language
+
+Copy `openstitch/locales/it.py`, translate the values, and add the language to `LANGUAGES` in `openstitch/i18n.py` and to `openstitch/locales/__init__.py`. A test checks that no text is missing and that placeholders such as `{count}` stayed the same.
+

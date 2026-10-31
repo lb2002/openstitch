@@ -4,16 +4,14 @@ from __future__ import annotations
 import math
 import re
 import xml.etree.ElementTree as ET
-from collections import defaultdict
 
 from shapely.geometry import LineString, Polygon
 from shapely.ops import unary_union
 
 from ..auto.palette import nearest_thread
 from ..core.design import Design, EmbObject, FillObject, RunObject, SatinObject
-from ..core.stitchplan import Cmd, StitchPlan, Thread
+from ..core.stitchplan import Thread
 from ..engine.geom import clean, main_axis_angle, polygons_of
-from ..i18n import fmt_float, fmt_int, tr
 
 
 # ===========================================================================
@@ -624,60 +622,3 @@ def import_svg(path: str, target_width_mm: float | None = 95.0) -> Design:
                 if not band.is_empty:
                     d.objects.append(SatinObject(th, name="SVG-Kontur (Satin)", geom=band))
     return d
-
-
-# ===========================================================================
-# 3. Qualitäts- & Maschinen-Doktor (Prüfung & Auto-Fix)
-# ===========================================================================
-def run_quality_doctor(design: Design, plan: StitchPlan, max_needles: int = 10) -> list[str]:
-    """Prüft das Design auf Stick-Probleme, die in der Praxis zu Fadenbruch, Nadelbruch oder Verzug führen."""
-    issues: list[str] = []
-    hw, hh = design.hoop.width / 2.0, design.hoop.height / 2.0
-    x0, y0, x1, y1 = plan.bounds()
-
-    if plan.stitch_count == 0:
-        return [tr("doc_empty")]
-
-    # 1. Rahmengrenzen-Check (Kollisionsgefahr Nadel/Presserfuss mit dem Rahmen!)
-    if design.hoop.round:
-        # tatsächliche Nadelpositionen statt Bounding-Box-Ecken (die überschätzen runde Motive um bis zu 41 %)
-        r_max = max((math.hypot(s.x, s.y) for b in plan.blocks for s in b.stitches
-                     if s.cmd in (Cmd.STITCH, Cmd.JUMP)), default=0.0)
-        if r_max > hw - 2.0:
-            issues.append(tr("doc_hoop_round").format(r=fmt_float(r_max), hoop=design.hoop.display_name,
-                                                      hr=fmt_float(hw, 0)))
-    else:
-        if x0 < -hw + 2 or x1 > hw - 2 or y0 < -hh + 2 or y1 > hh - 2:
-            issues.append(tr("doc_hoop_rect").format(w=fmt_float(x1 - x0), h=fmt_float(y1 - y0),
-                                                     hw=fmt_float(design.hoop.width, 0),
-                                                     hh=fmt_float(design.hoop.height, 0)))
-
-    # 2. Nadelanzahl-Check
-    unique_colors = len({b.thread.hex for b in plan.blocks})
-    if unique_colors > max_needles:
-        issues.append(tr("doc_colors").format(n=unique_colors, needles=max_needles))
-
-    # 3. Objekt-Checks (zu kleine Schrift / zu schmale Satin-Säulen)
-    for o in design.objects:
-        if not o.visible:
-            continue
-        # Die Micro-Schrift ist genau für kleine Höhen digitalisiert → keine Warnung
-        if o.kind == "text" and getattr(o, "height", 10.0) < 4.5 and getattr(o, "font", "") != "builtin:micro":
-            issues.append(tr("doc_small_text").format(name=o.name or getattr(o, "text", ""), h=fmt_float(o.height)))
-        if o.kind == "satin" and getattr(o, "spacing", 0.4) < 0.28:
-            issues.append(tr("doc_satin_density").format(name=o.name, sp=fmt_float(o.spacing, 2)))
-
-    # 4. Lokale Stichdichte prüfen
-    cells: dict[tuple[int, int], int] = defaultdict(int)
-    for b in plan.blocks:
-        for s in b.stitches:
-            if s.cmd == Cmd.STITCH:
-                cells[(int(math.floor(s.x)), int(math.floor(s.y)))] += 1
-    hot_cells = sum(1 for c in cells.values() if c > 14)
-    if hot_cells > 5:
-        issues.append(tr("doc_density").format(n=hot_cells))
-
-    if not issues:
-        issues.append(tr("doc_ok").format(st=fmt_int(plan.stitch_count), n=unique_colors, needles=max_needles,
-                                          hoop=design.hoop.display_name))
-    return issues
