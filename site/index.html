@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenStitch Studio: free embroidery digitizing software</title>
+<meta name="description" content="Free, open-source embroidery software for Windows, Mac and Linux. Turn images into stitches, check your design before you stitch, and save for your machine.">
+<meta property="og:title" content="OpenStitch Studio">
+<meta property="og:description" content="Free, open-source embroidery software for Windows, Mac and Linux.">
+<meta property="og:image" content="img/screenshot_studio.png">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero">
+  <nav class="top">
+    <span class="brand">OpenStitch Studio</span>
+    <div class="top-links">
+      <a href="#download" data-i18n="nav_download">Download</a>
+      <a href="https://github.com/lb2002/openstitch" data-i18n="nav_source">Source code</a>
+      <label class="lang">
+        <span class="sr" data-i18n="nav_lang">Language</span>
+        <select id="lang">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+        </select>
+      </label>
+    </div>
+  </nav>
+  <div class="hero-body">
+    <h1>
+      <img class="wordmark" src="img/hero-stitched.png" width="1565" height="360" alt="OpenStitch, embroidered in satin stitch">
+    </h1>
+    <p class="lede" data-i18n="lede">Free embroidery software that checks your design before you stitch it.</p>
+    <p class="sub" data-i18n="sub">Turn a logo into stitches, letter names from 3 mm, and save straight to a USB stick for your machine. For Windows, Mac and Linux. No account, no subscription.</p>
+    <div class="cta">
+      <a class="btn" id="primary-download" href="#download" data-i18n="cta">Download for free</a>
+      <span class="version" id="version"></span>
+    </div>
+    <p class="caption" data-i18n="hero_caption">The lettering above was stitched by OpenStitch itself.</p>
+  </div>
+</header>
+
+<main>
+  <section class="feature">
+    <div class="copy">
+      <h2 data-i18n="f1_t">Your image, turned into stitches</h2>
+      <p data-i18n="f1_d">Drop in a logo or drawing. OpenStitch picks thread colors from real catalogs like Madeira and Isacord, chooses satin or fill for each area, and adds underlay. Every part stays editable.</p>
+    </div>
+    <figure><img src="img/screenshot_studio.png" width="1440" height="900" loading="lazy" alt="The OpenStitch editor with a design in the hoop"></figure>
+  </section>
+
+  <section class="feature flip">
+    <div class="copy">
+      <h2 data-i18n="f2_t">Find problems before they cost thread</h2>
+      <p data-i18n="f2_d">Press F7 for a score out of 100 and plain explanations: too dense here, this stitch is too long, the design touches the hoop. Show takes you to the spot and Fix repairs it.</p>
+      <p data-i18n="f2_d2">It also shows how your fabric will pull in, from T-shirt to denim. Stitch one small test bar, measure it, and the preview uses your real fabric.</p>
+    </div>
+    <figure><img src="img/screenshot_check.png" width="900" height="620" loading="lazy" alt="Design check with a score of 80 and a fabric pull preview"></figure>
+  </section>
+
+  <section class="feature">
+    <div class="copy">
+      <h2 data-i18n="f3_t">Small lettering that stays readable</h2>
+      <p data-i18n="f3_d">Normal fonts fill in below about 5 mm. The built-in OpenStitch Micro font is drawn as single strokes, the way commercial small-text fonts are, so names and dates stay readable from about 3 mm.</p>
+    </div>
+    <figure><img src="img/micro_font_comparison.png" loading="lazy" alt="OpenStitch Micro compared with a normal font at small sizes"></figure>
+  </section>
+
+  <section class="formats">
+    <h2 data-i18n="fmt_t">Works with your machine</h2>
+    <p data-i18n="fmt_d">Saves DST, PES, JEF, EXP, VP3, U01 and XXX for Tajima, Brother, Janome, Melco, Bernina, Pfaff, Husqvarna, Barudan, Singer and more. Every file is read back and checked after saving.</p>
+  </section>
+
+  <section class="downloads" id="download">
+    <h2 data-i18n="dl_t">Download</h2>
+    <p class="muted" data-i18n="dl_d">Free and open source under AGPL-3.0.</p>
+    <ul class="dl-list">
+      <li data-os="windows">
+        <span class="os">Windows</span><span class="detail" data-i18n="dl_win">64-bit, one file, no installer</span>
+        <a href="https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Windows-x64.exe" data-i18n="dl_btn">Download</a>
+      </li>
+      <li data-os="mac">
+        <span class="os">Mac</span><span class="detail" data-i18n="dl_mac_arm">Apple chip (M1 to M4)</span>
+        <a href="https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-AppleSilicon-M-Chip-arm64.zip" data-i18n="dl_btn">Download</a>
+      </li>
+      <li data-os="mac">
+        <span class="os">Mac</span><span class="detail" data-i18n="dl_mac_intel">Intel chip</span>
+        <a href="https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-macOS-Intel-x64.zip" data-i18n="dl_btn">Download</a>
+      </li>
+      <li data-os="linux">
+        <span class="os">Linux</span><span class="detail" data-i18n="dl_linux">64-bit, unpack and run</span>
+        <a href="https://github.com/lb2002/openstitch/releases/latest/download/OpenStitch-Studio-Linux-x64.tar.gz" data-i18n="dl_btn">Download</a>
+      </li>
+    </ul>
+    <details class="mac-help">
+      <summary data-i18n="mac_t">macOS says it can't open the app</summary>
+      <p data-i18n="mac_d">OpenStitch is free and not signed with a paid Apple certificate, so macOS blocks it the first time. Move it to Applications, try to open it once, then go to System Settings, Privacy &amp; Security, and click Open Anyway. If macOS says the app is damaged, run this once in Terminal:</p>
+      <pre><code>xattr -cr "/Applications/OpenStitch Studio.app"</code></pre>
+    </details>
+  </section>
+
+  <section class="help">
+    <h2 data-i18n="help_t">Help us test it on real machines</h2>
+    <p data-i18n="help_d">OpenStitch is tested heavily on the computer, but it still needs real stitch-outs. If you sew a design on your machine, a photo and one sentence about what went right or wrong helps more than anything else.</p>
+    <a class="btn ghost" href="https://github.com/lb2002/openstitch/issues/new" data-i18n="help_btn">Share a stitch-out</a>
+  </section>
+</main>
+
+<footer>
+  <p><span data-i18n="foot">OpenStitch Studio is free software, licensed under AGPL-3.0.</span>
+  <a href="https://github.com/lb2002/openstitch">GitHub</a></p>
+</footer>
+<script src="main.js"></script>
+</body>
+</html>
