@@ -2,7 +2,7 @@
 
 🌐 **Sprache / Language:** [English](./README.md) · **Deutsch** · [Français](./README.fr.md) · [Español](./README.es.md)
 
-🧵 **Webseite:** https://lb2002.github.io/openstitch/
+🧵 **Webseite:** https://openstitch.treemont-studio.com/
 
 **Universal Open-Source Embroidery & Digitizing Suite for Windows, macOS & Linux**
 

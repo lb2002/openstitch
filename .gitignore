@@ -45,3 +45,7 @@ dist/
 
 # Zufallstests
 .hypothesis/
+
+# Cloudflare-Worker der Website
+cloudflare/node_modules/
+cloudflare/.wrangler/
