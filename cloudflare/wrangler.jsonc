@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "openstitch-site",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-15",
+  // Wrangler legt den DNS-Eintrag und das Zertifikat für die Subdomain selbst an
+  "routes": [
+    { "pattern": "openstitch.treemont-studio.com", "custom_domain": true }
+  ],
+  "workers_dev": false
+}
