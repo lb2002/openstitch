@@ -1,0 +1,33 @@
+name: Feature request
+description: An idea or wish that would make OpenStitch more useful for you.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem you want solved, not only the button you imagine. Often there is a simpler way to get there.
+        Not sure yet? Start a conversation in [Ideas](https://github.com/lb2002/openstitch/discussions/categories/ideas) instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      placeholder: "I stitch team names on caps and have to set every name by hand."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      placeholder: "Import a list of names and create one file per name."
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: How do you do it today?
+      description: Other software, workarounds, or not at all.
+  - type: input
+    id: machine
+    attributes:
+      label: Your machine (if it matters)
+      placeholder: "Janome MB-7, JEF"

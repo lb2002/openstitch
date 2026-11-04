@@ -1,0 +1,65 @@
+name: Bug report
+description: Something went wrong, crashed, or stitched differently than expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time! The more precise the steps, the faster it gets fixed.
+        A problem that only shows up on fabric is a bug too: a photo of the stitch-out helps a lot.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: "I auto-digitized a logo, pressed F7, and the program closed."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, starting from opening OpenStitch.
+      placeholder: |
+        1. Open OpenStitch
+        2. File, Open, choose logo.png
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: OpenStitch version
+      description: The release you downloaded, for example 0.4.0. If unsure, the date you downloaded it.
+      placeholder: "0.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS (Apple chip)
+        - macOS (Intel)
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: machine
+    attributes:
+      label: Embroidery machine and file format (if it is about stitching)
+      placeholder: "Brother PE800, PES"
+  - type: textarea
+    id: files
+    attributes:
+      label: Files, photos, screenshots
+      description: Drag files in here. The image you started from or your design makes it much easier to reproduce. GitHub only accepts some file types, so put .ostitch, .pes or .dst files into a ZIP first.
+  - type: textarea
+    id: log
+    attributes:
+      label: Error message or crash report
+      description: |
+        If OpenStitch showed an error, paste its text here. After a crash it also writes `crash.log`:
+        Windows `%APPDATA%\OpenStitch`, macOS `~/Library/Application Support/OpenStitch`, Linux `~/.local/share/OpenStitch`.
+      render: text

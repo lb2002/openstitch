@@ -2,6 +2,10 @@
 const T = {
   de: {
     nav_download: "Download", nav_source: "Quellcode", nav_lang: "Sprache",
+    nav_feedback: "Feedback",
+    fb_d: "Fehler gefunden, fehlt dir etwas oder kommst du nicht weiter?",
+    fb_bug: "Problem melden", fb_wish: "Idee vorschlagen", fb_question: "Frage stellen",
+    fb_note: "Rückmeldungen laufen über GitHub, dafür brauchst du ein kostenloses GitHub-Konto.",
     lede: "Kostenlose Sticksoftware, die dein Design prüft, bevor du stickst.",
     sub: "Mach aus einem Logo Stiche, sticke Namen ab 3 mm und speichere direkt auf den USB-Stick für deine Maschine. Für Windows, Mac und Linux. Ohne Konto, ohne Abo.",
     cta: "Kostenlos herunterladen", hero_caption: "Der Schriftzug oben wurde von OpenStitch selbst gestickt.",
@@ -26,6 +30,10 @@ const T = {
   },
   fr: {
     nav_download: "Télécharger", nav_source: "Code source", nav_lang: "Langue",
+    nav_feedback: "Retours",
+    fb_d: "Un bug, une fonction qui manque, ou vous êtes bloqué ?",
+    fb_bug: "Signaler un problème", fb_wish: "Proposer une idée", fb_question: "Poser une question",
+    fb_note: "Les retours passent par GitHub, il faut donc un compte GitHub gratuit.",
     lede: "Un logiciel de broderie gratuit qui vérifie votre motif avant que vous brodiez.",
     sub: "Transformez un logo en points, brodez des prénoms dès 3 mm et enregistrez directement sur la clé USB de votre machine. Pour Windows, Mac et Linux. Sans compte ni abonnement.",
     cta: "Télécharger gratuitement", hero_caption: "Le texte ci-dessus a été brodé par OpenStitch lui-même.",
@@ -50,6 +58,10 @@ const T = {
   },
   es: {
     nav_download: "Descargar", nav_source: "Código fuente", nav_lang: "Idioma",
+    nav_feedback: "Opiniones",
+    fb_d: "¿Encontraste un error, te falta algo o no sabes seguir?",
+    fb_bug: "Informar de un problema", fb_wish: "Proponer una idea", fb_question: "Hacer una pregunta",
+    fb_note: "Las opiniones se envían por GitHub, así que necesitas una cuenta gratuita de GitHub.",
     lede: "Software de bordado gratuito que revisa tu diseño antes de que bordes.",
     sub: "Convierte un logotipo en puntadas, borda nombres desde 3 mm y guarda directamente en la memoria USB de tu máquina. Para Windows, Mac y Linux. Sin cuenta ni suscripción.",
     cta: "Descargar gratis", hero_caption: "El texto de arriba lo bordó el propio OpenStitch.",

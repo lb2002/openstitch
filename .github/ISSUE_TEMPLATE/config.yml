@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Share a stitch-out
+    url: https://github.com/lb2002/openstitch/discussions/new?category=show-and-tell
+    about: Stitched something with OpenStitch? A photo and a sentence on what went right or wrong helps more than anything.
+  - name: Ask the community
+    url: https://github.com/lb2002/openstitch/discussions/categories/q-a
+    about: Questions others can answer too, and answers the next person can find.

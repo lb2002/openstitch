@@ -201,6 +201,10 @@ figure img {
 }
 
 .help .btn { margin-top: 8px; }
+.feedback-links { margin-top: 28px; font-weight: 650; }
+.feedback-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.feedback-list a { color: var(--denim); text-underline-offset: 4px; }
+.feedback-list + .muted { margin-top: 14px; font-size: 0.92rem; }
 
 footer {
   border-top: 2px dashed var(--rule);

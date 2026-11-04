@@ -1,0 +1,24 @@
+name: Question
+description: How do I ...? Something unclear in OpenStitch.
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Questions are welcome here. If you'd like others to chime in too, [Q&A in Discussions](https://github.com/lb2002/openstitch/discussions/categories/q-a) is often the better place, and answers there help the next person.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      placeholder: "How do I make the satin border thicker without changing the fill?"
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+  - type: input
+    id: setup
+    attributes:
+      label: OpenStitch version, operating system, machine
+      placeholder: "0.4.0, Windows 11, Brother PE800"
