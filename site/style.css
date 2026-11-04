@@ -1,0 +1,227 @@
+:root {
+  --denim: #1f2d4f;
+  --denim-deep: #172340;
+  --chalk: #f1f3f2;
+  --paper: #ffffff;
+  --gold: #e3a921;
+  --gold-hover: #f0bd3e;
+  --steel: #5f6b7a;
+  --seam: #c8323a;
+  --ink: #18202f;
+  --rule: #cfd5da;
+  --measure: 62ch;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--chalk);
+  color: var(--ink);
+  font-family: "Archivo", system-ui, sans-serif;
+  font-variation-settings: "wdth" 100;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+a { color: inherit; }
+
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; border-radius: 3px; }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* Überschriften schmal und kräftig, wie gewebte Etiketten */
+h1, h2, .brand {
+  font-variation-settings: "wdth" 72;
+  font-weight: 760;
+  letter-spacing: -0.005em;
+  line-height: 1.08;
+}
+
+h2 { font-size: clamp(1.7rem, 3.2vw, 2.4rem); margin: 0 0 0.6em; color: var(--denim); }
+
+/* --- Kopf auf Jeansstoff ---------------------------------------------------- */
+.hero {
+  color: #f4f2ec;
+  /* feine Köperbindung: diagonale Linien wie bei Denim */
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 5px),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 4px),
+    linear-gradient(160deg, var(--denim) 0%, var(--denim-deep) 100%);
+  padding: 0 clamp(16px, 5vw, 64px) clamp(48px, 8vw, 96px);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.brand { font-size: 1.15rem; }
+
+.top-links { display: flex; align-items: center; gap: clamp(12px, 3vw, 28px); }
+.top-links a { text-decoration: none; opacity: 0.85; }
+.top-links a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
+
+.lang select {
+  font: inherit;
+  font-size: 0.95rem;
+  color: inherit;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.lang option { color: var(--ink); }
+
+.hero-body { max-width: 1120px; margin: clamp(24px, 6vw, 72px) auto 0; }
+
+h1 { margin: 0; }
+
+.wordmark {
+  display: block;
+  width: min(100%, 820px);
+  height: auto;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.45));
+  /* einmal „einnähen“: von links nach rechts sichtbar werden */
+  animation: sew 2.4s steps(48, end) 0.2s both;
+}
+
+@keyframes sew {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+.lede {
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-variation-settings: "wdth" 88;
+  font-weight: 600;
+  line-height: 1.25;
+  max-width: 30ch;
+  margin: clamp(24px, 4vw, 40px) 0 0.5em;
+}
+
+.sub { max-width: var(--measure); margin: 0; color: rgba(244, 242, 236, 0.82); }
+
+.cta { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-top: 28px; }
+
+.btn {
+  display: inline-block;
+  background: var(--gold);
+  color: var(--denim-deep);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 14px 26px;
+  border-radius: 6px;
+}
+.btn:hover { background: var(--gold-hover); }
+
+.btn.ghost {
+  background: transparent;
+  color: var(--denim);
+  border: 2px solid var(--denim);
+  padding: 12px 24px;
+}
+.btn.ghost:hover { background: var(--denim); color: var(--chalk); }
+
+.version { color: rgba(244, 242, 236, 0.7); font-size: 0.95rem; }
+
+.caption { margin: 36px 0 0; font-size: 0.9rem; color: rgba(244, 242, 236, 0.6); }
+
+/* --- Inhalt ------------------------------------------------------------------ */
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 5vw, 64px); }
+
+/* Steppstich als Trenner zwischen den Abschnitten */
+main > section { padding: clamp(48px, 7vw, 88px) 0; border-top: 2px dashed var(--rule); }
+main > section:first-child { border-top: none; }
+
+.feature {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(28px, 5vw, 64px);
+  align-items: center;
+}
+.feature.flip .copy { order: 2; }
+
+.copy p { max-width: var(--measure); margin: 0 0 1em; }
+
+figure { margin: 0; }
+figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 1px 0 var(--rule), 0 18px 40px -24px rgba(23, 35, 64, 0.55);
+}
+
+.formats p, .downloads > p, .help p { max-width: var(--measure); }
+
+.muted { color: var(--steel); margin-top: -0.4em; }
+
+.dl-list { list-style: none; margin: 28px 0 0; padding: 0; border-top: 1px solid var(--rule); }
+.dl-list li {
+  display: grid;
+  grid-template-columns: 8rem 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.dl-list .os { font-weight: 700; font-variation-settings: "wdth" 80; font-size: 1.15rem; }
+.dl-list .detail { color: var(--steel); }
+.dl-list a {
+  text-decoration: none;
+  font-weight: 650;
+  color: var(--denim);
+  border: 2px solid var(--denim);
+  border-radius: 6px;
+  padding: 8px 18px;
+}
+.dl-list a:hover { background: var(--denim); color: var(--chalk); }
+
+/* Das eigene System hervorheben */
+.dl-list li.mine { background: var(--paper); border-left: 4px solid var(--gold); }
+.dl-list li.mine a { background: var(--gold); border-color: var(--gold); color: var(--denim-deep); }
+
+.mac-help { margin-top: 24px; max-width: var(--measure); }
+.mac-help summary { cursor: pointer; font-weight: 650; color: var(--denim); }
+.mac-help pre {
+  background: var(--denim-deep);
+  color: #f4f2ec;
+  padding: 12px 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.92rem;
+}
+
+.help .btn { margin-top: 8px; }
+
+footer {
+  border-top: 2px dashed var(--rule);
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px clamp(16px, 5vw, 64px) 48px;
+  color: var(--steel);
+  font-size: 0.95rem;
+}
+footer a { color: var(--denim); margin-left: 6px; }
+
+@media (max-width: 760px) {
+  .feature { grid-template-columns: 1fr; }
+  .feature.flip .copy { order: 0; }
+  .dl-list li { grid-template-columns: 1fr auto; }
+  .dl-list .detail { grid-column: 1; grid-row: 2; }
+  .dl-list a { grid-row: 1 / span 2; grid-column: 2; }
+  .top-links a[href^="https"] { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .wordmark { animation: none; }
+}

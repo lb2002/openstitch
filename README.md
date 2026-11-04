@@ -2,6 +2,8 @@
 
 🌐 **Language / Sprache:** **English** · [Deutsch](./README.de.md) · [Français](./README.fr.md) · [Español](./README.es.md)
 
+🧵 **Website:** https://lb2002.github.io/openstitch/
+
 **Universal Open-Source Embroidery & Digitizing Suite for Windows, macOS & Linux**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
