@@ -20,6 +20,7 @@
     <span class="brand">OpenStitch Studio</span>
     <div class="top-links">
       <a href="#download" data-i18n="nav_download">Download</a>
+      <a href="#feedback" data-i18n="nav_feedback">Feedback</a>
       <a href="https://github.com/lb2002/openstitch" data-i18n="nav_source">Source code</a>
       <label class="lang">
         <span class="sr" data-i18n="nav_lang">Language</span>
@@ -105,16 +106,24 @@
     </details>
   </section>
 
-  <section class="help">
+  <section class="help" id="feedback">
     <h2 data-i18n="help_t">Help us test it on real machines</h2>
     <p data-i18n="help_d">OpenStitch is tested heavily on the computer, but it still needs real stitch-outs. If you sew a design on your machine, a photo and one sentence about what went right or wrong helps more than anything else.</p>
-    <a class="btn ghost" href="https://github.com/lb2002/openstitch/issues/new" data-i18n="help_btn">Share a stitch-out</a>
+    <a class="btn ghost" href="https://github.com/lb2002/openstitch/discussions/new?category=show-and-tell" data-i18n="help_btn">Share a stitch-out</a>
+    <p class="feedback-links" data-i18n="fb_d">Found a bug, missing something, or stuck?</p>
+    <ul class="feedback-list">
+      <li><a href="https://github.com/lb2002/openstitch/issues/new?template=bug.yml" data-i18n="fb_bug">Report a problem</a></li>
+      <li><a href="https://github.com/lb2002/openstitch/issues/new?template=feature.yml" data-i18n="fb_wish">Suggest an idea</a></li>
+      <li><a href="https://github.com/lb2002/openstitch/discussions/categories/q-a" data-i18n="fb_question">Ask a question</a></li>
+    </ul>
+    <p class="muted" data-i18n="fb_note">Feedback goes through GitHub, so you need a free GitHub account.</p>
   </section>
 </main>
 
 <footer>
   <p><span data-i18n="foot">OpenStitch Studio is free software, licensed under AGPL-3.0.</span>
-  <a href="https://github.com/lb2002/openstitch">GitHub</a></p>
+  <a href="https://github.com/lb2002/openstitch">GitHub</a>
+  <a href="https://github.com/lb2002/openstitch/issues/new/choose" data-i18n="nav_feedback">Feedback</a></p>
 </footer>
 <script src="main.js"></script>
 </body>

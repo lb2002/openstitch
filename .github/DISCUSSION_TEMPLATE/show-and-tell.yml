@@ -1,0 +1,38 @@
+title: "Stitch-out: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing! Real stitch-outs are the best test OpenStitch can get. Good and bad results are both useful.
+  - type: textarea
+    id: photo
+    attributes:
+      label: Photo of the stitch-out
+      description: Drag one or more photos in here. A close-up of problem spots helps.
+    validations:
+      required: true
+  - type: input
+    id: machine
+    attributes:
+      label: Machine and file format
+      placeholder: "Brother PE800, PES"
+    validations:
+      required: true
+  - type: input
+    id: fabric
+    attributes:
+      label: Fabric, stabilizer, needle
+      placeholder: "T-shirt jersey, cut-away, 75/11 ballpoint"
+  - type: textarea
+    id: result
+    attributes:
+      label: What went right, what went wrong?
+      placeholder: "Lettering clean, but the fill pulled in about 1 mm on the left."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: OpenStitch version
+      placeholder: "0.4.0"
